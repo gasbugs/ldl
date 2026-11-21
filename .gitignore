@@ -1,0 +1,15 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.plan
+*.tfvars
+*.tfvars.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+.env
+.env.*
+*.pem
+*.key
