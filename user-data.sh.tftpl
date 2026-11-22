@@ -41,7 +41,7 @@ as_ubuntu() {
 
 as_ubuntu 'git init "$HOME/owasp-llm-lab-setup-guide"'
 as_ubuntu 'cd "$HOME/owasp-llm-lab-setup-guide" &&
-  git remote add origin https://github.com/gasbugs/lal.git &&
+  git remote add origin https://github.com/gasbugs/owasp-llm-application-security-lab.git &&
   git fetch --depth 1 origin ${setup_revision} &&
   git switch -c main FETCH_HEAD'
 

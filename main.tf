@@ -37,7 +37,7 @@ variable "learner_ipv4_cidr" {
 variable "setup_revision" {
   description = "Verified public setup repository commit to install."
   type        = string
-  default     = "d504dfc6ecacd55ed8bf3ff0acce89e1f7416a21"
+  default     = "1b6bced490c8e1b50af6017e0bf34d6ec45fb3df"
 
   validation {
     condition     = can(regex("^[0-9a-f]{40}$", var.setup_revision))
