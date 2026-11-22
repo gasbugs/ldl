@@ -1,10 +1,14 @@
-# LDL 전용 EC2
+# LLM Defense Lab (LDL) on AWS
 
-이 저장소는 LDL용 Ubuntu EC2 한 대의 Terraform과 부팅 코드를 관리한다. EC2의 IAM 역할·프로파일·보안 그룹은 수업용과 별개다. 인스턴스는 `m6a.large`이고, 루트 볼륨은 암호화한 gp3 100 GiB다. 기본 VPC와 기본 서브넷이 있는 `us-east-1` 계정에서 실행한다.
+English · [한국어](README.ko.md)
 
-## 운영자 배포
+LLM Defense Lab is a hands-on environment for implementing and verifying security controls in AI applications. Its browser-based Control Center provides 24 missions covering Amazon Bedrock model access, guardrails, privacy, usage limits, retrieval permissions, security observability, and MCP tool authorization.
 
-AWS CLI와 Terraform이 이미 설치된 Bash 터미널을 사용한다. AWS 콘솔 로그인 창에서 배포할 수강생 계정의 권한을 선택한다. 브라우저를 같은 환경에서 열 수 없으면 첫 명령에 `--remote`를 붙이고 브라우저에 표시된 인증 코드를 터미널에 입력한다.
+This repository contains the Terraform and first-boot script for deploying LDL. It provisions one dedicated Ubuntu EC2 `m6a.large` instance, an encrypted 100 GiB gp3 root volume, IAM roles, a security group, and an AWS Secrets Manager secret for Grafana logins. On first boot, the instance installs the Control Center and practice services from a pinned commit of the [OWASP LLM Lab Setup Guide](https://github.com/gasbugs/owasp-llm-lab-setup-guide).
+
+## Deploy
+
+Use a Bash terminal with AWS CLI and Terraform installed. The AWS account needs a default VPC and default subnets in `us-east-1`. Sign in to the AWS account where the lab should run. Add `--remote` to `aws login` if the browser is on another device.
 
 ```bash
 aws login --profile ldl-login --region us-east-1
@@ -14,18 +18,20 @@ export AWS_PROFILE=ldl-terraform
 aws sts get-caller-identity --region us-east-1
 ```
 
-`Account`가 배포할 계정인지 확인한다. `ldl-terraform` 프로필은 Terraform AWS 공급자에 로그인 세션의 임시 자격 증명을 전달한다. `learner_ipv4_cidr`에는 수강생의 PC에서 확인한 공인 IPv4 한 개를 `/32`로 입력한다.
+Check that `Account` matches the intended deployment account. The `ldl-terraform` profile passes temporary login credentials to the Terraform AWS provider. Enter the learner's public IPv4 address in `/32` notation so the security group permits ports 9010–9015 only from that address.
 
 ```bash
 terraform init
-read -r -p '수강생 PC 공인 IPv4 (/32 포함): ' LEARNER_CIDR
+read -r -p 'Learner public IPv4 address with /32: ' LEARNER_CIDR
 terraform plan -var="learner_ipv4_cidr=$LEARNER_CIDR" -out=ldl.plan
 terraform apply ldl.plan
 ```
 
-EC2 상태가 실행 중이 된 뒤에도 첫 부팅에서 Docker·AWS CLI 설치와 LDL 이미지 빌드가 진행된다. EC2 콘솔의 시스템 로그에서 `LDL_BOOTSTRAP_READY`를 확인한 다음 `terraform output -raw ldl_url`로 나온 주소를 수강생에게 전달한다. 수강생은 브라우저에서 접속한다. 이 모듈의 보안 그룹은 수강생 PC의 `9010–9015/tcp`만 허용한다.
+After EC2 enters the running state, first boot installs Docker and AWS CLI and builds the practice images. Wait for `LDL_BOOTSTRAP_READY` in the EC2 system log, then open the address returned by `terraform output -raw ldl_url`. If first boot fails, check the system log above `LDL_BOOTSTRAP_FAILED`.
 
-LDL 홈과 P00은 바로 열 수 있다. 보조 Grafana 화면을 사용할 때는 운영자가 AWS Secrets Manager에서 이 LDL 인스턴스의 두 로그인 정보를 확인해 해당 수강생에게 전달한다. 첫 부팅에서 생성한 비밀번호는 Terraform 입력과 부팅 로그에 들어가지 않는다. 이 모듈은 로그인 정보 보관용 Secrets Manager 시크릿 한 개도 생성한다.
+## Use and operate the lab
+
+The home page and P00 are available in the browser. For the separate Grafana views, the operator can retrieve the two logins generated for this deployment. The passwords are stored in Secrets Manager.
 
 ```bash
 aws secretsmanager get-secret-value --region us-east-1 \
@@ -33,16 +39,14 @@ aws secretsmanager get-secret-value --region us-east-1 \
   --query SecretString --output text
 ```
 
-첫 부팅은 암호화한 루트 볼륨에 4 GiB 스왑을 설정하고, 이미지 빌드 동시성을 1로 제한한다. 설치가 끝나면 LDL 사용자 서비스가 이후 EC2 시작 시 기존 데이터와 함께 컨테이너를 시작하고 새 공인 IPv4를 반영한다. EC2를 중지한 뒤 다시 시작한 경우 현재 공인 IPv4를 EC2 콘솔에서 확인해 접속 주소에 사용한다.
+First boot enables 4 GiB of swap on the encrypted root volume and builds images one at a time. On a later EC2 start, the LDL service starts the containers with their existing data and applies the current public IPv4 address. Check that address in the EC2 console after a stop and start.
 
-부팅에 실패하면 시스템 로그에서 `LDL_BOOTSTRAP_FAILED` 앞의 오류를 확인한다. Terraform 상태 파일로 해당 AWS 계정의 자원을 관리한다. 첫 부팅은 [setup 저장소](https://github.com/gasbugs/owasp-llm-lab-setup-guide)의 LDL 런타임을 고정 Git 커밋에서 받는다. Terraform 코드는 이 저장소 루트에서 실행한다.
+Terraform creates the service roles for the P01-02 and P01-03 Knowledge Bases. Prepare their source buckets, vector buckets, and Knowledge Bases through the corresponding missions. Prepare the P02-01 managed Guardrail through its mission. The Gateway issues 15-minute sessions for the document and retrieval missions, scoped to the document or Knowledge Base used in the current execution.
 
-EC2 역할은 Nova Lite 호출과 미션 전용 AWS 자원 준비에 필요한 권한을 갖는다. Terraform이 P01-02·03용 Knowledge Base 서비스 역할을 먼저 만들고, 실습 화면에서 원본 버킷·벡터 버킷·Knowledge Base 연결을 준비한다. P02-01의 관리형 Guardrail도 실습 화면에서 준비한다.
+## Remove a deployment
 
-P01-02·03은 실행 범위를 제한한 15분짜리 자격 증명을 사용한다. Gateway만 학습용 IAM 역할을 맡을 수 있고, 각 미션의 세션 정책은 현재 문서 또는 Knowledge Base로 권한을 좁힌다.
+Check ownership before deleting any buckets, Knowledge Bases, or Guardrails created by missions. These resources are created during practice and tracked outside Terraform state. After removing the resources owned by this deployment, use its Terraform state to remove EC2 and the remaining infrastructure.
 
-검증 배포를 정리할 때는 먼저 이번 미션에서 만든 버킷·Knowledge Base·Guardrail의 소유권을 확인한다. 이 자원은 미션 실행 중 만들어지므로 Terraform 상태에 등록되지 않는다. 이후 해당 배포의 Terraform 상태를 사용해 EC2와 배포 자원을 정리한다.
+## License
 
-## 라이선스
-
-이 저장소에서 직접 작성한 부분은 비상업적 사용에 [PolyForm Noncommercial License 1.0.0](LICENSE)을 적용합니다. 상업적 사용에는 [별도의 서면 상업용 라이선스](COMMERCIAL-LICENSE.md)가 필요합니다. [저작권 고지](NOTICE.md)와 [외부 구성요소의 라이선스](THIRD-PARTY-LICENSES.md)를 확인하세요.
+Original LDL code is available for noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE). Commercial use requires a [separate written license](COMMERCIAL-LICENSE.md). See the [copyright notice](NOTICE.md) and [third-party licenses](THIRD-PARTY-LICENSES.md).
