@@ -67,6 +67,7 @@ runuser -u ubuntu -- env \
   XDG_RUNTIME_DIR="/run/user/$ubuntu_uid" \
   DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$ubuntu_uid/bus" \
   COMPOSE_PARALLEL_LIMIT=1 \
+  GUIDED_LDL_LEARNER_ROLE_ARN="${learner_role_arn}" \
   bash /home/ubuntu/owasp-llm-lab-setup-guide/tools/install-guided-practice.sh --ec2 </dev/null
 public_ip=$(cut -d= -f2 /home/ubuntu/owasp-llm-lab-setup-guide/llm-security-control-plane/.state/guided-ec2/public-ip.env)
 for endpoint in 9010/proxy-healthz 9011/ 9012/api/health 9013/api/health 9014/ 9015/; do

@@ -1,4 +1,8 @@
 mock_provider "aws" {
+  alias = "course_contract"
+}
+
+mock_provider "aws" {
   mock_data "aws_caller_identity" {
     defaults = { account_id = "111111111111" }
   }

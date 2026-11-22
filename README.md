@@ -37,4 +37,12 @@ aws secretsmanager get-secret-value --region us-east-1 \
 
 부팅에 실패하면 시스템 로그에서 `LDL_BOOTSTRAP_FAILED` 앞의 오류를 확인한다. Terraform 상태 파일로 해당 AWS 계정의 자원을 관리한다. 첫 부팅은 [setup 저장소](https://github.com/gasbugs/owasp-llm-lab-setup-guide)의 LDL 런타임을 고정 Git 커밋에서 받는다. Terraform 코드는 이 저장소 루트에서 실행한다.
 
-역할에는 P01-01의 Nova Lite 호출 권한을 넣는다. 후속 미션의 S3·Knowledge Base 자원과 임시 인증은 미션 실행 범위다. 현재 P01-02·03 Gateway에는 EC2 역할로 사용할 수 없는 `GetFederationToken` 호출이 남아 있어 별도 수정과 검증이 필요하다.
+EC2 역할은 Nova Lite 호출과 미션 전용 AWS 자원 준비에 필요한 권한을 갖는다. Terraform이 P01-02·03용 Knowledge Base 서비스 역할을 먼저 만들고, 실습 화면에서 원본 버킷·벡터 버킷·Knowledge Base 연결을 준비한다. P02-01의 관리형 Guardrail도 실습 화면에서 준비한다.
+
+P01-02·03은 실행 범위를 제한한 15분짜리 자격 증명을 사용한다. Gateway만 학습용 IAM 역할을 맡을 수 있고, 각 미션의 세션 정책은 현재 문서 또는 Knowledge Base로 권한을 좁힌다.
+
+검증 배포를 정리할 때는 먼저 이번 미션에서 만든 버킷·Knowledge Base·Guardrail의 소유권을 확인한다. 이 자원은 미션 실행 중 만들어지므로 Terraform 상태에 등록되지 않는다. 이후 해당 배포의 Terraform 상태를 사용해 EC2와 배포 자원을 정리한다.
+
+## 라이선스
+
+이 저장소에서 직접 작성한 부분은 비상업적 사용에 [PolyForm Noncommercial License 1.0.0](LICENSE)을 적용합니다. 상업적 사용에는 [별도의 서면 상업용 라이선스](COMMERCIAL-LICENSE.md)가 필요합니다. [저작권 고지](NOTICE.md)와 [외부 구성요소의 라이선스](THIRD-PARTY-LICENSES.md)를 확인하세요.

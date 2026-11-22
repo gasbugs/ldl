@@ -1,0 +1,148 @@
+{
+  "document": {
+    "role_name": "owasp-llm-03-${account_id}-knowledge-base-role",
+    "trust_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "bedrock.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole",
+          "Condition": {
+            "StringEquals": {
+              "aws:SourceAccount": "${account_id}"
+            },
+            "ArnLike": {
+              "aws:SourceArn": "arn:aws:bedrock:us-east-1:${account_id}:knowledge-base/*"
+            }
+          }
+        }
+      ]
+    },
+    "runtime_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "InvokeTitanEmbedding",
+          "Effect": "Allow",
+          "Action": "bedrock:InvokeModel",
+          "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+        },
+        {
+          "Sid": "ReadKnowledgeSource",
+          "Effect": "Allow",
+          "Action": [
+            "s3:ListBucket",
+            "s3:GetObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::owasp-llm-03-${account_id}-source",
+            "arn:aws:s3:::owasp-llm-03-${account_id}-source/h02/knowledge/*"
+          ]
+        },
+        {
+          "Sid": "UseS3VectorIndex",
+          "Effect": "Allow",
+          "Action": [
+            "s3vectors:DeleteVectors",
+            "s3vectors:GetIndex",
+            "s3vectors:GetVectors",
+            "s3vectors:PutVectors",
+            "s3vectors:QueryVectors"
+          ],
+          "Resource": [
+            "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-llm-03-${account_id}-vectors",
+            "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-llm-03-${account_id}-vectors/index/course-knowledge"
+          ]
+        }
+      ]
+    },
+    "source_bucket": "owasp-llm-03-${account_id}-source",
+    "source_prefix": "h02/knowledge/",
+    "vector_bucket_arn": "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-llm-03-${account_id}-vectors",
+    "index_arn": "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-llm-03-${account_id}-vectors/index/course-knowledge",
+    "policy_name": "owasp-llm-03-knowledge-base-runtime",
+    "tags": {
+      "Course": "tenant-03",
+      "Activity": "H02",
+      "ManagedBy": "guided-control-center"
+    }
+  },
+  "search": {
+    "role_name": "owasp-guided-p03-${account_id}-kb-role",
+    "trust_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "bedrock.amazonaws.com"
+          },
+          "Action": "sts:AssumeRole",
+          "Condition": {
+            "StringEquals": {
+              "aws:SourceAccount": "${account_id}"
+            },
+            "ArnLike": {
+              "aws:SourceArn": "arn:aws:bedrock:us-east-1:${account_id}:knowledge-base/*"
+            }
+          }
+        }
+      ]
+    },
+    "runtime_policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "EmbedSource",
+          "Effect": "Allow",
+          "Action": "bedrock:InvokeModel",
+          "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+        },
+        {
+          "Sid": "ListSource",
+          "Effect": "Allow",
+          "Action": "s3:ListBucket",
+          "Resource": "arn:aws:s3:::owasp-guided-p03-${account_id}-source",
+          "Condition": {
+            "StringLike": {
+              "s3:prefix": [
+                "h03/knowledge/*"
+              ]
+            }
+          }
+        },
+        {
+          "Sid": "ReadSource",
+          "Effect": "Allow",
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::owasp-guided-p03-${account_id}-source/h03/knowledge/*"
+        },
+        {
+          "Sid": "UseVectorIndex",
+          "Effect": "Allow",
+          "Action": [
+            "s3vectors:DeleteVectors",
+            "s3vectors:GetIndex",
+            "s3vectors:GetVectors",
+            "s3vectors:PutVectors",
+            "s3vectors:QueryVectors"
+          ],
+          "Resource": "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-guided-p03-${account_id}-vectors/index/knowledge"
+        }
+      ]
+    },
+    "source_bucket": "owasp-guided-p03-${account_id}-source",
+    "source_prefix": "h03/knowledge/",
+    "vector_bucket_arn": "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-guided-p03-${account_id}-vectors",
+    "index_arn": "arn:aws:s3vectors:us-east-1:${account_id}:bucket/owasp-guided-p03-${account_id}-vectors/index/knowledge",
+    "policy_name": "guided-p03-kb-runtime",
+    "tags": {
+      "Course": "tenant-03",
+      "Activity": "P03",
+      "ManagedBy": "guided-control-center"
+    }
+  }
+}

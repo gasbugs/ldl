@@ -37,7 +37,7 @@ variable "learner_ipv4_cidr" {
 variable "setup_revision" {
   description = "Verified public setup repository commit to install."
   type        = string
-  default     = "07468c2e31a5b9ee3b480423ee8f036c1fa70ac1"
+  default     = "21194719f4cceadb67ad460f5619800156535d6c"
 
   validation {
     condition     = can(regex("^[0-9a-f]{40}$", var.setup_revision))
@@ -128,7 +128,8 @@ resource "aws_iam_instance_profile" "ldl" {
 }
 
 resource "aws_secretsmanager_secret" "grafana" {
-  name = "owasp-llm-ldl/grafana-logins"
+  name_prefix             = "owasp-llm-ldl/grafana-logins-"
+  recovery_window_in_days = 0
 }
 
 resource "aws_iam_role_policy" "publish_grafana" {
@@ -152,8 +153,9 @@ resource "aws_instance" "ldl" {
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ldl.name
   user_data = templatefile("${path.module}/user-data.sh.tftpl", {
-    setup_revision = var.setup_revision
-    grafana_secret = aws_secretsmanager_secret.grafana.arn
+    setup_revision   = var.setup_revision
+    grafana_secret   = aws_secretsmanager_secret.grafana.arn
+    learner_role_arn = aws_iam_role.learner_session.arn
   })
   tags = { Name = "owasp-llm-ldl" }
 
@@ -171,7 +173,7 @@ resource "aws_instance" "ldl" {
     tags                  = { Name = "owasp-llm-ldl" }
   }
 
-  depends_on = [aws_iam_role_policy.model, aws_iam_role_policy.publish_grafana]
+  depends_on = [aws_iam_role_policy.model, aws_iam_role_policy.publish_grafana, aws_iam_role_policy.learner_session, aws_iam_role_policy.knowledge_source, aws_iam_role_policy.course_preparation]
 }
 
 output "ldl_url" {
