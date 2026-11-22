@@ -4,7 +4,7 @@
 
 LLM Defense Lab(LDL)은 브라우저에서 AI 애플리케이션의 보안 통제를 구현하고 검증하는 실습 환경입니다. Control Center에서 24개의 미션을 열어 Bedrock 모델 접근, 개인정보 보호, 가드레일, 사용량 제한, 검색 권한, 보안 관측, MCP 도구 권한을 실습합니다.
 
-이 저장소는 LDL을 AWS에 배포하는 Terraform과 첫 부팅 스크립트를 관리합니다. 기본 VPC와 서브넷이 있는 `us-east-1`에서 전용 Ubuntu EC2 `m6a.large` 한 대, 암호화된 100 GiB gp3 볼륨, IAM 역할, 보안 그룹, Grafana 로그인용 Secrets Manager 시크릿을 준비합니다. 첫 부팅에서 [setup 저장소](https://github.com/gasbugs/owasp-llm-lab-setup-guide)의 고정 커밋을 받아 Control Center와 실습 서비스를 설치합니다.
+이 저장소는 LDL을 AWS에 배포하는 Terraform과 첫 부팅 스크립트를 관리합니다. 기본 VPC와 서브넷이 있는 `us-east-1`에서 전용 Ubuntu EC2 `m6a.large` 한 대, 암호화된 100 GiB gp3 볼륨, IAM 역할, 보안 그룹, Grafana 로그인용 Secrets Manager 시크릿을 준비합니다. 첫 부팅에서 [setup 저장소](https://github.com/gasbugs/lal)의 고정 커밋을 받아 Control Center와 실습 서비스를 설치합니다.
 
 ## 운영자 배포
 
@@ -39,7 +39,7 @@ aws secretsmanager get-secret-value --region us-east-1 \
 
 첫 부팅은 암호화한 루트 볼륨에 4 GiB 스왑을 설정하고, 이미지 빌드 동시성을 1로 제한한다. 설치가 끝나면 LDL 사용자 서비스가 이후 EC2 시작 시 기존 데이터와 함께 컨테이너를 시작하고 새 공인 IPv4를 반영한다. EC2를 중지한 뒤 다시 시작한 경우 현재 공인 IPv4를 EC2 콘솔에서 확인해 접속 주소에 사용한다.
 
-부팅에 실패하면 시스템 로그에서 `LDL_BOOTSTRAP_FAILED` 앞의 오류를 확인한다. Terraform 상태 파일로 해당 AWS 계정의 자원을 관리한다. 첫 부팅은 [setup 저장소](https://github.com/gasbugs/owasp-llm-lab-setup-guide)의 LDL 런타임을 고정 Git 커밋에서 받는다. Terraform 코드는 이 저장소 루트에서 실행한다.
+부팅에 실패하면 시스템 로그에서 `LDL_BOOTSTRAP_FAILED` 앞의 오류를 확인한다. Terraform 상태 파일로 해당 AWS 계정의 자원을 관리한다. 첫 부팅은 [setup 저장소](https://github.com/gasbugs/lal)의 LDL 런타임을 고정 Git 커밋에서 받는다. Terraform 코드는 이 저장소 루트에서 실행한다.
 
 EC2 역할은 Nova Lite 호출과 미션 전용 AWS 자원 준비에 필요한 권한을 갖는다. Terraform이 P01-02·03용 Knowledge Base 서비스 역할을 먼저 만들고, 실습 화면에서 원본 버킷·벡터 버킷·Knowledge Base 연결을 준비한다. P02-01의 관리형 Guardrail도 실습 화면에서 준비한다.
 

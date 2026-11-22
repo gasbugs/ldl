@@ -4,7 +4,7 @@ English · [한국어](README.ko.md)
 
 LLM Defense Lab is a hands-on environment for implementing and verifying security controls in AI applications. Its browser-based Control Center provides 24 missions covering Amazon Bedrock model access, guardrails, privacy, usage limits, retrieval permissions, security observability, and MCP tool authorization.
 
-This repository contains the Terraform and first-boot script for deploying LDL. It provisions one dedicated Ubuntu EC2 `m6a.large` instance, an encrypted 100 GiB gp3 root volume, IAM roles, a security group, and an AWS Secrets Manager secret for Grafana logins. On first boot, the instance installs the Control Center and practice services from a pinned commit of the [OWASP LLM Lab Setup Guide](https://github.com/gasbugs/owasp-llm-lab-setup-guide).
+This repository contains the Terraform and first-boot script for deploying LDL. It provisions one dedicated Ubuntu EC2 `m6a.large` instance, an encrypted 100 GiB gp3 root volume, IAM roles, a security group, and an AWS Secrets Manager secret for Grafana logins. On first boot, the instance installs the Control Center and practice services from a pinned commit of the [LAL runtime](https://github.com/gasbugs/lal).
 
 ## Deploy
 
