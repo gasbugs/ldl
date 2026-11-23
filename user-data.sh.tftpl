@@ -39,8 +39,9 @@ as_ubuntu() {
   runuser -l ubuntu -c "$1"
 }
 
-as_ubuntu 'git init "$HOME/owasp-llm-lab-setup-guide"'
-as_ubuntu 'cd "$HOME/owasp-llm-lab-setup-guide" &&
+as_ubuntu 'mkdir -p "$HOME/llm-defense-lab"'
+as_ubuntu 'git init "$HOME/llm-defense-lab/lal-runtime"'
+as_ubuntu 'cd "$HOME/llm-defense-lab/lal-runtime" &&
   git remote add origin https://github.com/gasbugs/owasp-llm-application-security-lab.git &&
   git fetch --depth 1 origin ${setup_revision} &&
   git switch -c main FETCH_HEAD'
@@ -68,8 +69,8 @@ runuser -u ubuntu -- env \
   DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$ubuntu_uid/bus" \
   COMPOSE_PARALLEL_LIMIT=1 \
   GUIDED_LDL_LEARNER_ROLE_ARN="${learner_role_arn}" \
-  bash /home/ubuntu/owasp-llm-lab-setup-guide/tools/install-guided-practice.sh --ec2 </dev/null
-public_ip=$(cut -d= -f2 /home/ubuntu/owasp-llm-lab-setup-guide/llm-security-control-plane/.state/guided-ec2/public-ip.env)
+  bash /home/ubuntu/llm-defense-lab/lal-runtime/tools/install-guided-practice.sh --ec2 </dev/null
+public_ip=$(cut -d= -f2 /home/ubuntu/llm-defense-lab/lal-runtime/llm-security-control-plane/.state/guided-ec2/public-ip.env)
 for endpoint in 9010/proxy-healthz 9011/ 9012/api/health 9013/api/health 9014/ 9015/; do
   port=$(echo "$endpoint" | cut -d/ -f1)
   # Check the published listener using the same Host header as the learner's browser.
@@ -92,7 +93,7 @@ import json
 from pathlib import Path
 import sys
 
-env_file = Path("/home/ubuntu/owasp-llm-lab-setup-guide/llm-security-control-plane/.state/guided-course.env")
+env_file = Path("/home/ubuntu/llm-defense-lab/lal-runtime/llm-security-control-plane/.state/guided-course.env")
 values = dict(line.split("=", 1) for line in env_file.read_text().splitlines() if "=" in line)
 logins = {
     "grafana_explore": {"username": "admin", "password": values["GUIDED_GRAFANA_PASSWORD"]},
