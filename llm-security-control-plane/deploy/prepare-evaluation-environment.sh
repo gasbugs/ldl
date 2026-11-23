@@ -156,7 +156,8 @@ LOCAL_GID=$(id -g)
 BEDROCK_HOST_PORT=18096
 PRESIDIO_HOST_PORT=18093
 HUB_HOST_PORT=18094
-APPLICATION_HOST_PORT=18095
+APPLICATION_HOST_PORT=9016
+AUTH_ALLOWED_ORIGINS=${AUTH_ALLOWED_ORIGINS:-http://127.0.0.1:9016,http://localhost:9016}
 CONTROL_PLANE_NETWORK_NAME=llm-security-control-plane
 ENV
 )
@@ -241,7 +242,7 @@ compose up -d --force-recreate --wait --wait-timeout 180 \
 compose ps -a
 stage 8 '서비스 health와 적용 정책 확인'
 for url in http://127.0.0.1:18096/healthz http://127.0.0.1:18093/healthz \
-  http://127.0.0.1:18094/healthz http://127.0.0.1:18095/healthz; do
+  http://127.0.0.1:18094/healthz http://127.0.0.1:9016/healthz; do
   curl -fsS --max-time 10 "$url" | jq -e '.ok == true' >/dev/null
   log "준비 검사 통과: $url"
 done
@@ -249,17 +250,17 @@ curl -fsS --max-time 10 http://127.0.0.1:18094/api/guardrails/policy \
   | jq -e '.guard_mode == "detection" and .assurance_profile == "high-assurance" and
            .presidio_failure_mode == "closed" and .main_task.id == "account-security-support-v1"' >/dev/null
 # Verify the issued lifetime, not only the Compose setting; never display the token.
-curl -fsS --max-time 10 -X POST http://127.0.0.1:18095/.well-known/login \
+curl -fsS --max-time 10 -X POST http://127.0.0.1:9016/.well-known/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"public-reader","password":"public-reader-demo"}' \
   | jq -e '.expires_in == 3600 and .token_type == "Bearer" and (.access_token | type == "string" and length > 0)' >/dev/null
 log '로그인 Token 유효 시간 확인 완료: 3600초 (1시간)'
-printf 'evaluation-environment=READY app=http://127.0.0.1:18095 mode=detection profile=high-assurance auth=jwt presidio-failure=closed\n'
+printf 'evaluation-environment=READY app=http://127.0.0.1:9016 mode=detection profile=high-assurance auth=jwt presidio-failure=closed\n'
 printf '\n===== 평가 환경 준비 결과 =====\n'
 printf '결과: READY · 소요 시간: %s초\n' "$((SECONDS-START_SECONDS))"
 printf 'Setup 버전: %s (공식 main 최신 확인)\n' "$SETUP_COMMIT"
 printf '서비스: 4개 시작 및 health 확인 완료\n'
-printf 'Application: http://127.0.0.1:18095\nNeMo Hub: http://127.0.0.1:18094\nPresidio: http://127.0.0.1:18093\nBedrock Gateway: http://127.0.0.1:18096\n'
+printf 'Application: http://127.0.0.1:9016\nNeMo Hub: http://127.0.0.1:18094\nPresidio: http://127.0.0.1:18093\nBedrock Gateway: http://127.0.0.1:18096\n'
 printf 'Knowledge Base: %s · %s · us-east-1\n' "$KNOWLEDGE_BASE_ID" "$KB_ACTION"
 printf '적용 정책: detection · high-assurance · Presidio 장애 시 closed\n'
 printf '검사 범위: NeMo·Presidio 탐지, 차단·비식별화 미적용. JWT 인증·인가·Bedrock 자체 안전 기능 유지\n'

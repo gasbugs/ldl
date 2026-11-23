@@ -20,7 +20,7 @@ export AWS_PROFILE=ldl-terraform
 aws sts get-caller-identity --region us-east-1
 ```
 
-Check that `Account` matches the intended deployment account. The `ldl-terraform` profile passes temporary login credentials to the Terraform AWS provider. Enter the learner's public IPv4 address in `/32` notation so the security group permits ports 9010–9015 only from that address.
+Check that `Account` matches the intended deployment account. The `ldl-terraform` profile passes temporary login credentials to the Terraform AWS provider. Enter the learner's public IPv4 address in `/32` notation so the security group permits ports 9010–9020 only from that address.
 
 ```bash
 terraform init

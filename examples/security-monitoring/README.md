@@ -21,7 +21,7 @@ application instrumentation
 ## Request path
 
 ```text
-browser -> Module 08 Application :18095 -> NeMo/Presidio
+browser -> Module 08 Application :9016 -> NeMo/Presidio
         -> local Bedrock Gateway -> Amazon Bedrock
 
 Security Events :8014 <- metadata-only events from Application and local services

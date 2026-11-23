@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP=http://127.0.0.1:18095
+APP=http://127.0.0.1:9016
 ACCESS_TOKEN=""
 
 login() {

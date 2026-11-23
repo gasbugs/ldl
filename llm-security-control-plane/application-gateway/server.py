@@ -51,7 +51,7 @@ APPLICATION_INTERNAL_TOKEN = os.environ["APPLICATION_INTERNAL_TOKEN"]
 BEDROCK_GATEWAY_TOKEN = os.environ["BEDROCK_GATEWAY_TOKEN"]
 AUTH_USERS_PATH = os.getenv("AUTH_USERS_PATH", "/app/policies/application-users.yaml")
 AUTH_STATE_DIR = os.getenv("AUTH_STATE_DIR", "/app/state")
-AUTH_ISSUER = os.getenv("AUTH_ISSUER", "http://127.0.0.1:18095")
+AUTH_ISSUER = os.getenv("AUTH_ISSUER", "http://127.0.0.1:9016")
 AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "llm-security-application")
 AUTH_EVENT_SINK = {
     item.strip() for item in os.getenv("AUTH_EVENT_SINK", "stdout").split(",") if item.strip()
@@ -59,7 +59,7 @@ AUTH_EVENT_SINK = {
 AUTH_ALLOWED_ORIGINS = {
     item.strip()
     for item in os.getenv(
-        "AUTH_ALLOWED_ORIGINS", "http://127.0.0.1:18095,http://localhost:18095"
+        "AUTH_ALLOWED_ORIGINS", "http://127.0.0.1:9016,http://localhost:9016"
     ).split(",")
     if item.strip()
 }

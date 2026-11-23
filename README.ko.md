@@ -8,6 +8,8 @@ LLM Defense Lab(LDL)은 브라우저에서 AI 애플리케이션의 보안 통�
 
 [Bedrock API 실습 자료](bedrock-api-lab/)에는 Nova Lite·Titan·Knowledge Base 실습의 원문 문서, IAM 정책 템플릿, Boto3 버전 고정 파일을 둡니다. 짧은 Tool Use Python 예제는 수강생이 직접 작성합니다. Gateway·가드레일·평가·관측·Control Center 런타임도 이 저장소에서 관리합니다.
 
+04~07장 Browser 접속은 통합 앱 TCP 9016, Grafana TCP 9017을 사용합니다. NeMo 정책 조회와 MCP 호출은 EC2 터미널에서 실행합니다. 보안 그룹은 실습 PC의 공인 IPv4 /32에서 TCP 9010~9020만 허용합니다.
+
 ## 운영자 배포
 
 AWS CLI와 Terraform이 이미 설치된 Bash 터미널을 사용한다. AWS 콘솔 로그인 창에서 배포할 수강생 계정의 권한을 선택한다. 브라우저를 같은 환경에서 열 수 없으면 첫 명령에 `--remote`를 붙이고 브라우저에 표시된 인증 코드를 터미널에 입력한다.
@@ -29,7 +31,7 @@ terraform plan -var="learner_ipv4_cidr=$LEARNER_CIDR" -out=ldl.plan
 terraform apply ldl.plan
 ```
 
-EC2 상태가 실행 중이 된 뒤에도 첫 부팅에서 Docker·AWS CLI 설치와 LDL 이미지 빌드가 진행된다. EC2 콘솔의 시스템 로그에서 `LDL_BOOTSTRAP_READY`를 확인한 다음 `terraform output -raw ldl_url`로 나온 주소를 수강생에게 전달한다. 수강생은 브라우저에서 접속한다. 이 모듈의 보안 그룹은 수강생 PC의 `9010–9015/tcp`만 허용한다.
+EC2 상태가 실행 중이 된 뒤에도 첫 부팅에서 Docker·AWS CLI 설치와 LDL 이미지 빌드가 진행된다. EC2 콘솔의 시스템 로그에서 `LDL_BOOTSTRAP_READY`를 확인한 다음 `terraform output -raw ldl_url`로 나온 주소를 수강생에게 전달한다. 수강생은 브라우저에서 접속한다. 이 모듈의 보안 그룹은 수강생 PC의 `9010–9020/tcp`만 허용한다.
 
 LDL 홈과 P00은 바로 열 수 있다. 보조 Grafana 화면을 사용할 때는 운영자가 AWS Secrets Manager에서 이 LDL 인스턴스의 두 로그인 정보를 확인해 해당 수강생에게 전달한다. 첫 부팅에서 생성한 비밀번호는 Terraform 입력과 부팅 로그에 들어가지 않는다. 이 모듈은 로그인 정보 보관용 Secrets Manager 시크릿 한 개도 생성한다.
 

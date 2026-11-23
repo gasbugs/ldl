@@ -4,7 +4,7 @@ main_stage: bedrock_main
 browser_entrypoint: application
 services:
   application:
-    host_port: 18095
+    host_port: 9016
     container_port: 8000
   nemo:
     host_port: 18094

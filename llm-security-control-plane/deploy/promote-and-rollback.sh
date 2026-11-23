@@ -14,8 +14,8 @@ done
 
 START_BEDROCK_GATEWAY=false IMAGE_VERSION="$CANDIDATE_VERSION" \
   bash "$ROOT/deploy/start-stack.sh" >/dev/null
-curl -fsS http://127.0.0.1:18095/healthz | jq '{candidate_version:.version,ok}'
+curl -fsS http://127.0.0.1:9016/healthz | jq '{candidate_version:.version,ok}'
 
 START_BEDROCK_GATEWAY=false IMAGE_VERSION="$BASELINE_VERSION" \
   bash "$ROOT/deploy/start-stack.sh" >/dev/null
-curl -fsS http://127.0.0.1:18095/healthz | jq '{rollback_version:.version,ok}'
+curl -fsS http://127.0.0.1:9016/healthz | jq '{rollback_version:.version,ok}'

@@ -80,7 +80,7 @@ resource "aws_security_group" "ldl" {
   ingress {
     description = "LDL browser ports from the learner"
     from_port   = 9010
-    to_port     = 9015
+    to_port     = 9020
     protocol    = "tcp"
     cidr_blocks = [var.learner_ipv4_cidr]
   }

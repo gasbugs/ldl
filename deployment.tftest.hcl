@@ -33,7 +33,7 @@ run "isolated_ldl_deployment" {
   }
 
   assert {
-    condition     = length(aws_security_group.ldl.ingress) == 1 && one(aws_security_group.ldl.ingress).from_port == 9010 && one(aws_security_group.ldl.ingress).to_port == 9015 && toset(one(aws_security_group.ldl.ingress).cidr_blocks) == toset(["198.51.100.10/32"])
+    condition     = length(aws_security_group.ldl.ingress) == 1 && one(aws_security_group.ldl.ingress).from_port == 9010 && one(aws_security_group.ldl.ingress).to_port == 9020 && toset(one(aws_security_group.ldl.ingress).cidr_blocks) == toset(["198.51.100.10/32"])
     error_message = "Only the learner's web traffic may reach the LDL security group."
   }
 

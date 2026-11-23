@@ -8,7 +8,7 @@
 
 ```text
 Browser
-  -> Application Gateway :18095
+  -> Application Gateway :9016
        authentication -> authorization -> classified RAG selection
        -> NeMo Policy Hub :18094
             -> Presidio Privacy Spoke :18093 (input)
@@ -23,7 +23,7 @@ Browser
   <- Browser
 ```
 
-Browser chat has one external entry point: Application `:18095`. The local
+Browser chat has one external entry point: Application `:9016`. The local
 Bedrock Gateway `:18096` is an internal model/retrieval boundary and rejects
 protected requests unless they carry the generated service Bearer token from
 the mode-`0600` `.state/module08-compose.env`. Health and metrics remain
@@ -251,13 +251,13 @@ Application/NeMo-to-Bedrock-Gateway 토큰은 서로 다르다.
 token을 mTLS, service mesh identity 또는 cloud workload identity로 교체한다.
 
 ```bash
-curl -sS -X POST http://127.0.0.1:18095/.well-known/login \
+curl -sS -X POST http://127.0.0.1:9016/.well-known/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"public-reader","password":"public-reader-demo"}' \
   | tee /tmp/application-login.json
 
 ACCESS_TOKEN=$(jq -r '.access_token' /tmp/application-login.json)
-curl -sS -X POST http://127.0.0.1:18095/api/chat \
+curl -sS -X POST http://127.0.0.1:9016/api/chat \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"message":"공개 보안 연락처를 알려 주세요.","classification":"public","purpose":"public_information"}'

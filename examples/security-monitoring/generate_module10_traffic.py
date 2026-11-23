@@ -300,7 +300,7 @@ def stop_background() -> int:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", nargs="?", default="start", choices=("start", "run", "status", "stop"))
-    parser.add_argument("--base-url", default=os.getenv("MODULE10_APP_URL", "http://127.0.0.1:18095"))
+    parser.add_argument("--base-url", default=os.getenv("MODULE10_APP_URL", "http://127.0.0.1:9016"))
     parser.add_argument("--duration-minutes", type=float, default=15.0)
     parser.add_argument("--interval-seconds", type=float, default=2.0)
     parser.add_argument("--cycles", type=int, default=0, help="0 uses only the duration limit")

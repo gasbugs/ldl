@@ -208,7 +208,7 @@
 
   <div class="console-grid">
     <section class="panel" aria-labelledby="workbench-title">
-      <header class="panel-head"><div><div class="eyebrow">Request workbench</div><h2 id="workbench-title">대화와 애플리케이션 권한</h2></div><span class="panel-code">APP / 18095</span></header>
+      <header class="panel-head"><div><div class="eyebrow">Request workbench</div><h2 id="workbench-title">대화와 애플리케이션 권한</h2></div><span class="panel-code">APP / 9016</span></header>
       <div class="workbench">
         <div class="field"><label for="username">실습 사용자</label><select id="username"><option value="public-reader">공개 자료 사용자</option><option value="internal-analyst">내부 분석가</option><option value="support-agent">지원 담당자</option></select></div>
         <div class="field"><label for="password">비밀번호</label><input id="password" type="password" autocomplete="current-password"></div>
@@ -242,7 +242,7 @@
 
   <div class="result-grid">
     <section class="panel"><header class="panel-head"><div><div class="eyebrow">Released response</div><h2>사용자 응답</h2></div><span class="panel-code">OUTPUT</span></header><div class="result-body"><pre id="reply">아직 실행하지 않았습니다.</pre></div></section>
-    <section class="panel"><header class="panel-head"><div><div class="eyebrow">Evidence payload</div><h2>구조화된 원본</h2></div><span class="panel-code">JSON</span></header><div class="result-body"><details><summary>원본 응답 펼치기</summary><pre id="raw">{}</pre></details><nav class="investigation-links" aria-label="관측 증거 바로가기"><a id="grafana-link" href="http://127.0.0.1:3001" target="_blank" rel="noopener">GRAFANA</a><a id="monitor-link" href="http://127.0.0.1:8014" target="_blank" rel="noopener">SECURITY EVENTS</a><a id="tempo-link" href="#" aria-disabled="true">TEMPO TRACE</a></nav></div></section>
+    <section class="panel"><header class="panel-head"><div><div class="eyebrow">Evidence payload</div><h2>구조화된 원본</h2></div><span class="panel-code">JSON</span></header><div class="result-body"><details><summary>원본 응답 펼치기</summary><pre id="raw">{}</pre></details><nav class="investigation-links" aria-label="관측 증거 바로가기"><a id="grafana-link" href="#" target="_blank" rel="noopener">GRAFANA</a><a id="monitor-link" href="#" target="_blank" rel="noopener">SECURITY EVENTS</a><a id="tempo-link" href="#" aria-disabled="true">TEMPO TRACE</a></nav></div></section>
   </div>
 
   <section class="panel architecture" aria-labelledby="architecture-title">
@@ -251,7 +251,7 @@
       <div class="topology-map" aria-label="Browser, Application, NeMo, Presidio와 Bedrock 서비스 구조">
         <div class="service-node node-browser" data-service="browser" data-port="BROWSER"><strong>사용자 Browser</strong><small>요청 입력·최종 응답</small></div>
         <div class="map-link link-browser-app" data-link="browser-application" aria-hidden="true"></div>
-        <div class="service-node node-application" data-service="application" data-port=":18095"><strong>Application</strong><small>인증·인가·최종 집행</small></div>
+        <div class="service-node node-application" data-service="application" data-port=":9016"><strong>Application</strong><small>인증·인가·최종 집행</small></div>
         <div class="map-link link-app-hub" data-link="application-nemo" aria-hidden="true"></div>
         <div class="service-node node-nemo" data-service="nemo" data-port=":18094"><strong>NeMo Hub</strong><small>Rail 순서 조정</small></div>
         <div class="map-link link-hub-spokes" data-link="nemo-dependencies" aria-hidden="true"></div>
@@ -280,6 +280,25 @@
 </main>
 <script>
 const $=id=>document.getElementById(id);
+const grafanaBase = new URL(window.location.href);
+grafanaBase.port = '9017';
+grafanaBase.pathname = '/';
+grafanaBase.search = '';
+grafanaBase.hash = '';
+function grafanaExplore(datasource, query) {
+  const url = new URL('explore', grafanaBase);
+  url.searchParams.set('schemaVersion', '1');
+  url.searchParams.set('panes', JSON.stringify({
+    lab: {datasource, queries: [{refId: 'A', datasource: {uid: datasource}, ...query}],
+          range: {from: 'now-1h', to: 'now'}}
+  }));
+  return url.href;
+}
+$('grafana-link').href = grafanaBase.href;
+$('monitor-link').href = grafanaExplore('llm-security-loki', {
+  expr: '{service_name="llm-security-application-gateway"}'
+});
+
 const themeButton=$('theme-toggle');
 let accessToken='';
 function setTheme(theme){document.documentElement.dataset.theme=theme;localStorage.setItem('llm-lab-theme',theme);themeButton.setAttribute('aria-label',`${theme==='dark'?'라이트':'다크'} 테마로 전환`)}
@@ -316,7 +335,7 @@ function composeTraceStages(data){const application=data.application_stages||[];
 function resetTopology(){document.querySelectorAll('[data-service],[data-link]').forEach(node=>node.classList.remove('active','block','knowledge-base','nova'))}
 function activateTopology(exchange,decision){const names={Browser:'browser',Application:'application','NeMo Hub':'nemo',Presidio:'presidio','Bedrock Gateway':'bedrock'};const state=decision==='block'||decision==='infra'?'block':'active';for(const endpoint of [exchange.from,exchange.to]){const name=names[endpoint];if(name){const node=document.querySelector(`[data-service="${name}"]`);if(node)node.classList.add(state)}}if(exchange.target){document.querySelector(`[data-service="${exchange.target}"]`)?.classList.add(state);document.querySelector('[data-link="bedrock-targets"]')?.classList.add(state,exchange.target)}if((exchange.from==='Browser'&&exchange.to==='Application')||(exchange.from==='Application'&&exchange.to==='Browser'))document.querySelector('[data-link="browser-application"]')?.classList.add(state);if(exchange.from==='Application'&&exchange.to==='NeMo Hub')document.querySelector('[data-link="application-nemo"]')?.classList.add(state);if(exchange.from==='NeMo Hub'){document.querySelector('[data-link="nemo-dependencies"]')?.classList.add(state);const route=exchange.to==='Presidio'?'nemo-presidio':exchange.to==='Bedrock Gateway'?'nemo-bedrock':'';if(route)document.querySelector(`[data-link="${route}"]`)?.classList.add(state)}}
 function renderExchanges(stages){resetTopology();$('exchange-log').replaceChildren();const exchanges=stages.map(stage=>({stage,definition:exchangeCatalog[stage.stage]})).filter(item=>item.definition);$('exchange-count').textContent=`${exchanges.length} EXCHANGES`;if(!exchanges.length){const empty=document.createElement('div');empty.className='empty-strip';empty.textContent='서비스 통신 증거가 없습니다.';$('exchange-log').appendChild(empty);return}exchanges.forEach(({stage,definition},index)=>{const row=document.createElement('div');row.className=`exchange ${stage.decision||''}`;const order=document.createElement('div');order.className='exchange-index';order.textContent=String(index+1).padStart(2,'0');const route=document.createElement('div');route.className='exchange-route';const routeTitle=document.createElement('strong');routeTitle.textContent=`${definition.from} → ${definition.to}`;const routePath=document.createElement('small');routePath.textContent=definition.route;route.append(routeTitle,routePath);const payload=document.createElement('div');payload.className='exchange-payload';const request=document.createElement('strong');request.textContent=`REQ · ${valueOf(definition.request,stage)}`;const response=document.createElement('small');response.textContent=`RES · ${valueOf(definition.response,stage)}`;payload.append(request,response);const status=document.createElement('div');status.className='exchange-status';status.textContent=String(stage.decision||'observed');row.append(order,route,payload,status);$('exchange-log').appendChild(row);activateTopology(definition,stage.decision)})}
-function renderInvestigationLinks(data){const traceId=data.trace_id||'';const tempo=$('tempo-link');if(/^[a-f0-9]{32}$/.test(traceId)){tempo.href=`http://127.0.0.1:3200/api/traces/${traceId}`;tempo.target='_blank';tempo.rel='noopener';tempo.setAttribute('aria-disabled','false')}else{tempo.href='#';tempo.removeAttribute('target');tempo.setAttribute('aria-disabled','true')}}
+function renderInvestigationLinks(data){const traceId=data.trace_id||'';const tempo=$('tempo-link');if(/^[a-f0-9]{32}$/.test(traceId)){tempo.href=grafanaExplore('llm-security-tempo', {query: traceId, queryType: 'traceId'});tempo.target='_blank';tempo.rel='noopener';tempo.setAttribute('aria-disabled','false')}else{tempo.href='#';tempo.removeAttribute('target');tempo.setAttribute('aria-disabled','true')}}
 $('send').onclick=async()=>{const body={message:$('message').value,classification:$('classification').value,purpose:$('purpose').value};$('decision').className='decision-badge';$('decision').textContent='IN FLIGHT';$('decision-copy').textContent='정책 경계를 순서대로 통과하고 있습니다.';$('stages').innerHTML='<div class="empty-strip">REQUEST IN FLIGHT / 처리 중</div>';
 try{if(!accessToken)await login();let r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+accessToken},body:JSON.stringify(body)});if(r.status===401&&await refresh())r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+accessToken},body:JSON.stringify(body)});const d=await r.json();const decision=d.application_decision||'infra';$('decision').className=`decision-badge ${decision}`;$('decision').textContent=decision.toUpperCase();$('decision-copy').textContent=`request_id=${d.request_id||'-'} · trace_id=${d.trace_id||'-'}`;$('reply').textContent=d.reply||JSON.stringify(d);const stages=composeTraceStages(d);renderStages(stages);renderExchanges(stages);renderInvestigationLinks(d);$('raw').textContent=JSON.stringify(d,null,2)}catch(e){$('decision').className='decision-badge infra';$('decision').textContent='INFRA';$('decision-copy').textContent='요청 경로를 완료하지 못했습니다.';$('reply').textContent=String(e);renderStages([]);renderExchanges([]);renderInvestigationLinks({})}};
 </script>
