@@ -6,6 +6,8 @@ LLM Defense Lab is a hands-on environment for implementing and verifying securit
 
 This repository contains the Terraform and first-boot script for deploying LDL. It provisions one dedicated Ubuntu EC2 `m6a.large` instance, an encrypted 100 GiB gp3 root volume, IAM roles, a security group, and an AWS Secrets Manager secret for Grafana logins. On first boot, the instance installs the Control Center and practice services from a pinned commit of the [LAL runtime](https://github.com/gasbugs/owasp-llm-application-security-lab).
 
+The [Bedrock API lab](bedrock-api-lab/) contains the source documents, IAM policy templates, and pinned Boto3 dependency for the course's Nova Lite, Titan, and Knowledge Base exercises. Learners write the short Tool Use Python example themselves. This lab material is separate from the LAL runtime used by the Control Center.
+
 ## Deploy
 
 Use a Bash terminal with AWS CLI and Terraform installed. The AWS account needs a default VPC and default subnets in `us-east-1`. Sign in to the AWS account where the lab should run. Add `--remote` to `aws login` if the browser is on another device.

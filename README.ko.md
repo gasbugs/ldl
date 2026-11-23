@@ -6,6 +6,8 @@ LLM Defense Lab(LDL)은 브라우저에서 AI 애플리케이션의 보안 통�
 
 이 저장소는 LDL을 AWS에 배포하는 Terraform과 첫 부팅 스크립트를 관리합니다. 기본 VPC와 서브넷이 있는 `us-east-1`에서 전용 Ubuntu EC2 `m6a.large` 한 대, 암호화된 100 GiB gp3 볼륨, IAM 역할, 보안 그룹, Grafana 로그인용 Secrets Manager 시크릿을 준비합니다. 첫 부팅에서 [setup 저장소](https://github.com/gasbugs/owasp-llm-application-security-lab)의 고정 커밋을 받아 Control Center와 실습 서비스를 설치합니다.
 
+[Bedrock API 실습 자료](bedrock-api-lab/)에는 Nova Lite·Titan·Knowledge Base 실습의 원문 문서, IAM 정책 템플릿, Boto3 버전 고정 파일을 둡니다. 짧은 Tool Use Python 예제는 수강생이 직접 작성합니다. 이 자료는 Control Center가 사용하는 LAL 런타임과 분리됩니다.
+
 ## 운영자 배포
 
 AWS CLI와 Terraform이 이미 설치된 Bash 터미널을 사용한다. AWS 콘솔 로그인 창에서 배포할 수강생 계정의 권한을 선택한다. 브라우저를 같은 환경에서 열 수 없으면 첫 명령에 `--remote`를 붙이고 브라우저에 표시된 인증 코드를 터미널에 입력한다.
