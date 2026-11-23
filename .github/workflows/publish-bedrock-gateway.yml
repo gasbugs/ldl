@@ -81,8 +81,20 @@ jobs:
           exit 1
 
       - name: Publish tested image
+        uses: docker/build-push-action@v7
+        with:
+          context: llm-security-control-plane
+          file: llm-security-control-plane/bedrock-gateway/Containerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.version.outputs.value }}
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/gasbugs/llm-defense-lab
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
+
+      - name: Summarize published image
         run: |
-          docker push "$IMAGE:${{ steps.version.outputs.value }}"
-          docker push "$IMAGE:sha-${{ github.sha }}"
-          echo "### Gateway image" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`$IMAGE:${{ steps.version.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMAGE:${{ steps.version.outputs.value }}" >> "$GITHUB_STEP_SUMMARY"
