@@ -8,6 +8,8 @@ This repository contains the Terraform and first-boot script for deploying LDL. 
 
 The [Bedrock API lab](bedrock-api-lab/) contains the source documents, IAM policy templates, and pinned Boto3 dependency for the course's Nova Lite, Titan, and Knowledge Base exercises. Learners write the short Tool Use Python example themselves. The Gateway, guardrails, evaluation, monitoring, and Control Center runtime sources are managed in this repository.
 
+Chapters 04–07 expose the application on TCP 9016 and Grafana on TCP 9017. Policy inspection and MCP calls run inside EC2. The security group permits TCP 9010–9020 from the learner IPv4 /32.
+
 ## Deploy
 
 Use a Bash terminal with AWS CLI and Terraform installed. The AWS account needs a default VPC and default subnets in `us-east-1`. Sign in to the AWS account where the lab should run. Add `--remote` to `aws login` if the browser is on another device.

@@ -296,7 +296,7 @@ function grafanaExplore(datasource, query) {
 }
 $('grafana-link').href = grafanaBase.href;
 $('monitor-link').href = grafanaExplore('llm-security-loki', {
-  expr: '{service_name="llm-security-application-gateway"}'
+  expr: '{service_name="llm-security-gateway"}'
 });
 
 const themeButton=$('theme-toggle');
