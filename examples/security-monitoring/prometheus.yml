@@ -1,0 +1,62 @@
+# CUSTOM FILE: project-authored Prometheus deployment config.
+# Format reference: Prometheus configuration (Apache-2.0), https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: llm-security-gateway
+    static_configs:
+      - targets: ["gateway:8080"]
+
+  - job_name: llm-security-application
+    file_sd_configs:
+      - files: ["/etc/prometheus/application-targets.json"]
+
+  - job_name: amazon-bedrock-gateway
+    static_configs:
+      - targets: ["llm-security-bedrock-gateway:8080"]
+
+  # Presidio and NeMo forward authenticated decision events to the gateway.
+  # The resulting bounded guardrail metrics are exposed by this same endpoint,
+  # so no loopback-only Module 08 component API port needs to be opened to Prometheus.
+
+  - job_name: llm-security-retrieval
+    static_configs:
+      - targets: ["retrieval:8081"]
+
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  - job_name: alert-webhook
+    static_configs:
+      - targets: ["alert-webhook:8099"]
+
+  - job_name: grafana
+    static_configs:
+      - targets: ["grafana:3000"]

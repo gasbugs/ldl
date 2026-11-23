@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Build and execute one contracted Docker lab, then emit raw JSONL evidence."""
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+from lab_contract import ContractError, load_contract, parse_jsonl, validate_evidence, validate_runtime
+
+
+def run(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    capture: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+        env=env,
+        check=True,
+    )
+
+
+def parse_mixed_json_records(text: str) -> list[dict]:
+    """Extract publisher JSON events from a human-readable host harness."""
+
+    records: list[dict] = []
+    for line in text.splitlines():
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            records.append(value)
+    return records
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--contract", type=Path, required=True)
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--setup-root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--stage")
+    args = parser.parse_args()
+    if re.fullmatch(r"[A-Za-z0-9._-]{3,100}", args.run_id) is None:
+        parser.error("run-id contains unsafe characters")
+    root = args.setup_root.resolve()
+    try:
+        contract = load_contract(args.contract.resolve())
+        runtime_issues = validate_runtime(contract, root)
+        if runtime_issues:
+            raise ContractError("; ".join(runtime_issues))
+        runtime = contract["runtime"]
+        selected_contract = contract
+        selected_case_ids = {case["case_id"] for case in contract["cases"]}
+        if args.stage:
+            stage = runtime.get("targeted_stages", {}).get(args.stage)
+            if not isinstance(stage, dict):
+                raise ContractError(f"targeted stage is not declared: {args.stage}")
+            selected_case_ids = set(stage.get("case_ids", []))
+            selected_contract = copy.deepcopy(contract)
+            selected_contract["cases"] = [
+                case for case in contract["cases"]
+                if case["case_id"] in selected_case_ids
+            ]
+        image = f"{runtime['image']}-loop-{args.run_id[:12].lower()}"
+        container = f"{runtime['container_prefix']}-{args.run_id[:24].lower()}"
+        source = root / contract["policy"]["source"]
+        source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+        print(json.dumps({
+            "event": "policy_check", "lab_id": contract["lab_id"],
+            "policy_source": contract["policy"]["source"],
+            "runtime_activation": contract["policy"]["runtime_activation"],
+            "policy_sha256": source_hash,
+        }, ensure_ascii=False), flush=True)
+        mode = runtime.get("execution_mode", "docker-suite")
+        if mode == "host-script":
+            runner = (root / runtime["runner_script"]).resolve()
+            try:
+                runner.relative_to(root)
+            except ValueError as exc:
+                raise ContractError("host runner escapes setup repository") from exc
+            if not runner.is_file():
+                raise ContractError(f"host runner missing: {runtime['runner_script']}")
+            command = ["bash", str(runner)]
+            if args.stage:
+                command.extend(["--stage", args.stage])
+            container = "host-script"
+            command_env = os.environ.copy()
+            command_env.update(runtime.get("environment", {}))
+        else:
+            if not args.skip_build:
+                build_context = root / runtime["build_context"]
+                build_command = ["docker", "build", "--tag", image]
+                if runtime.get("build_file"):
+                    build_command.extend(
+                        ["--file", str(build_context / runtime["build_file"])]
+                    )
+                build_command.append(str(build_context))
+                run(build_command)
+            suite_args = list(runtime["suite_args"])
+            by_case = {case["case_id"]: case for case in contract["cases"]}
+            for override in runtime["case_overrides"]:
+                suite_args.extend([override["option"], by_case[override["case_id"]]["input"]["value"]])
+            command = [
+                "docker", "run", "--name", container,
+                "--network", runtime["network"], image, *suite_args,
+            ]
+            command_env = None
+        command_identity: object = command
+        if runtime.get("environment"):
+            command_identity = {
+                "command": command,
+                "environment": runtime["environment"],
+            }
+        command_hash = hashlib.sha256(json.dumps(
+            command_identity, ensure_ascii=False, separators=(",", ":")
+        ).encode("utf-8")).hexdigest()
+        try:
+            completed = run(command, cwd=root, env=command_env)
+            if completed.stderr:
+                print(completed.stderr, file=sys.stderr, end="")
+            logs = (
+                completed.stdout
+                if mode == "host-script"
+                else run(["docker", "logs", container]).stdout
+            )
+            if mode == "host-script":
+                records = parse_mixed_json_records(logs)
+                logs = "\n".join(
+                    json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+                    for record in records
+                )
+                if logs:
+                    logs += "\n"
+            else:
+                records = parse_jsonl(logs)
+            if args.stage:
+                records = [
+                    record for record in records
+                    if record.get("event") != runtime.get("event_name", "guard_scan")
+                    or record.get("case") in selected_case_ids
+                ]
+                logs = "\n".join(
+                    json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+                    for record in records
+                )
+                if logs:
+                    logs += "\n"
+            evidence_issues = validate_evidence(selected_contract, records)
+            if evidence_issues:
+                raise ContractError("; ".join(evidence_issues))
+            print(logs, end="" if logs.endswith("\n") else "\n")
+            print(json.dumps({
+                "event": "contract_summary", "lab_id": contract["lab_id"],
+                "status": "PASS", "case_count": len(selected_contract["cases"]),
+                "stage": args.stage or "all",
+                "command_sha256": command_hash,
+                "raw_log_sha256": hashlib.sha256(logs.encode("utf-8")).hexdigest(),
+                "container": container,
+            }, ensure_ascii=False), flush=True)
+        finally:
+            if mode != "host-script":
+                subprocess.run(
+                    ["docker", "rm", "--force", container],
+                    text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+                )
+        return 0
+    except (ContractError, OSError, subprocess.CalledProcessError) as exc:
+        if isinstance(exc, subprocess.CalledProcessError):
+            if exc.stdout:
+                print(exc.stdout, file=sys.stderr, end="")
+            if exc.stderr:
+                print(exc.stderr, file=sys.stderr, end="")
+        print(json.dumps({"event": "contract_summary", "status": "FAIL", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

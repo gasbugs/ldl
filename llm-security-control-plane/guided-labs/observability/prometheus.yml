@@ -1,0 +1,11 @@
+# CUSTOM FILE
+# Format reference: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+# Upstream format license: Apache-2.0
+global: {scrape_interval: 2s, evaluation_interval: 2s}
+alerting:
+  alertmanagers: [{static_configs: [{targets: ["alertmanager:9093"]}]}]
+scrape_configs:
+  - job_name: guided-h17-telemetry
+    static_configs: [{targets: ["guided-h17-telemetry:8000"]}]
+  - job_name: guided-h18-queries
+    static_configs: [{targets: ["guided-h18-queries:8000"]}]

@@ -1,0 +1,55 @@
+schema_version: 1
+release: 1.0.0
+
+# 처음 읽는 순서
+# 1. runtime과 python_packages: API 서비스가 실행되는 공통 환경을 본다.
+# 2. bedrock: Main·일반 위해·Self-check가 공유하는 Model ID를 본다.
+# 3. images: 네 서비스 Image가 같은 release인지 본다.
+# 4. test_tools: Promptfoo와 Garak 테스트 결과를 재현할 버전을 본다.
+# 일반 실행은 검증한 version tag를 사용하고 공급망 실습만 digest를 직접 비교한다.
+
+# 서비스 공통 Python patch version이다.
+runtime:
+  python_image: docker.io/library/python:3.12.14-slim
+  nginx_unprivileged_image: docker.io/nginxinc/nginx-unprivileged:1.29.1-alpine
+
+# 회귀·탐색 도구 버전이 바뀌면 판정과 fixture 수가 달라질 수 있으므로 함께 잠근다.
+test_tools:
+  node_image: docker.io/library/node:24-bookworm-slim
+  promptfoo: 0.121.20
+  garak: 0.15.1
+  pyrit: 1.0.1
+
+# 서비스 이미지를 다시 만들 때 재현할 Python dependency 정본이다.
+python_packages:
+  fastapi: 0.116.1
+  httpx: 0.28.1
+  nemoguardrails: 0.24.1
+  presidio_analyzer: 2.2.362
+  presidio_anonymizer: 2.2.362
+  pydantic: 2.13.4
+  pyjwt: 2.10.1
+  pyyaml: 6.0.3
+  spacy: 3.8.15
+  spacy_model: en_core_web_sm-3.8.0
+  uvicorn: 0.52.4
+  opentelemetry: 1.36.0
+  opentelemetry_instrumentation: 0.57b0
+
+# Gateway health와 실제 응답의 Model ID가 다르면 Hub는 fail-closed 한다.
+bedrock:
+  provider: amazon-bedrock
+  model_id: us.amazon.nova-lite-v1:0
+
+# 정책 변경은 기존 tag를 덮어쓰지 않고 새 release와 image tag로 승격한다.
+images:
+  application_gateway: localhost/llm-security-application-gateway:1.0.0
+  nemo_policy_hub: localhost/llm-security-nemo-policy-hub:1.0.0
+  presidio_privacy_spoke: localhost/llm-security-presidio-privacy-spoke:1.0.0
+  bedrock_gateway: localhost/llm-security-bedrock-gateway:1.0.0
+  guided_front_proxy: localhost/llm-security-guided-front-proxy:0.1.0
+  guided_control_center: localhost/llm-security-guided-control-center:0.1.0
+  guided_h01_gateway: localhost/llm-security-guided-h01-gateway:0.1.0
+  guided_h03_sync_app: localhost/llm-security-guided-h03-sync-app:0.1.0
+  guided_evidence_verifier: localhost/llm-security-guided-evidence-verifier:0.1.0
+  guided_bedrock_gateway: localhost/llm-security-guided-bedrock-gateway:0.1.0

@@ -1,0 +1,7 @@
+[Unit]
+Description=Build one guided block submission
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/llm-defense-lab/tools/guided-block-build-worker.py
+TimeoutStartSec=300

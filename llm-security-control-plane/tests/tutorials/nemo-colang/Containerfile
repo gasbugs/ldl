@@ -1,0 +1,3 @@
+FROM localhost/module08-nemo-first:e2e
+COPY --chmod=0555 config /work/config
+COPY --chmod=0444 demo.py /work/demo.py

@@ -1,0 +1,44 @@
+# CUSTOM FILE: project-authored Grafana Tempo deployment config.
+# Format reference: Tempo configuration (AGPL-3.0), https://grafana.com/docs/tempo/latest/configuration/
+server:
+  http_listen_port: 3200
+  log_level: info
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+
+metrics_generator:
+  metrics_ingestion_time_range_slack: 10m
+  registry:
+    collection_interval: 5s
+    external_labels:
+      source: tempo
+      cluster: module08
+  storage:
+    path: /var/tempo/generator/wal
+    remote_write_add_org_id_header: false
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+
+overrides:
+  defaults:
+    compaction:
+      block_retention: 24h
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+usage_report:
+  reporting_enabled: false

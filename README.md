@@ -4,9 +4,9 @@ English · [한국어](README.ko.md)
 
 LLM Defense Lab is a hands-on environment for implementing and verifying security controls in AI applications. Its browser-based Control Center provides 24 missions covering Amazon Bedrock model access, guardrails, privacy, usage limits, retrieval permissions, security observability, and MCP tool authorization.
 
-This repository contains the Terraform and first-boot script for deploying LDL. It provisions one dedicated Ubuntu EC2 `m6a.large` instance, an encrypted 100 GiB gp3 root volume, IAM roles, a security group, and an AWS Secrets Manager secret for Grafana logins. On first boot, the instance installs the Control Center and practice services from a pinned commit of the [LAL runtime](https://github.com/gasbugs/owasp-llm-application-security-lab).
+This repository contains the Terraform and first-boot script for deploying LDL. It provisions one dedicated Ubuntu EC2 `m6a.large` instance, an encrypted 100 GiB gp3 root volume, IAM roles, a security group, and an AWS Secrets Manager secret for Grafana logins. On first boot, the instance installs the Control Center and practice services from this LDL repository.
 
-The [Bedrock API lab](bedrock-api-lab/) contains the source documents, IAM policy templates, and pinned Boto3 dependency for the course's Nova Lite, Titan, and Knowledge Base exercises. Learners write the short Tool Use Python example themselves. This lab material is separate from the LAL runtime used by the Control Center.
+The [Bedrock API lab](bedrock-api-lab/) contains the source documents, IAM policy templates, and pinned Boto3 dependency for the course's Nova Lite, Titan, and Knowledge Base exercises. Learners write the short Tool Use Python example themselves. The Gateway, guardrails, evaluation, monitoring, and Control Center runtime sources are managed in this repository.
 
 ## Deploy
 

@@ -1,0 +1,469 @@
+# CUSTOM FILE
+# Project format: tenant 03 tab, activity, and evidence contract.
+# License: PolyForm-Noncommercial-1.0.0 OR commercial license.
+
+schema_version: 1
+course_id: tenant-03-guided-llm-security
+workspace: practice
+# 공개 번호만 바꾸고 기존 서비스·실행 ID는 재사용한다.
+execution_ids:
+  P01: H01
+  P02: H02
+  P03: H03
+  P04: H04
+  P05: H05
+  P06: H06
+  P07: H07
+  P08: H08
+  P09: H09
+  P10: H10
+  P11: H11
+  P12: H12
+  P13: H13
+  P14: H14
+  P15: H15
+  P16: H16
+  P17: H17
+  P18: H18
+  P19: H19
+  P20: H20
+  P21: H21
+  P22: H22
+  P23: H23
+tabs:
+  - {id: 01-nova, hands_on: [H01], hands_on_status: implemented}
+  - {id: 02-embedding-kb, hands_on: [H23, H02, H03], hands_on_status: implemented, implemented_hands_on: [H23, H02, H03]}
+  - {id: 03-bedrock-guardrail, hands_on: [H04], hands_on_status: implemented, implemented_hands_on: [H04]}
+  - {id: 04-nemo-dialog-action, hands_on: [H05, H06], hands_on_status: implemented, implemented_hands_on: [H05, H06]}
+  - {id: 05-input-safety, hands_on: [H07, H08], hands_on_status: implemented, implemented_hands_on: [H07, H08]}
+  - {id: 06-privacy-output, hands_on: [H09, H10], hands_on_status: implemented, implemented_hands_on: [H09, H10]}
+  - {id: 07-rag-boundary, hands_on: [H11, H12], hands_on_status: implemented, implemented_hands_on: [H11, H12]}
+  - {id: 08-promptfoo, hands_on: [H13], hands_on_status: implemented, implemented_hands_on: [H13]}
+  - {id: 09-garak-pyrit, hands_on: [H14, H15], hands_on_status: implemented, implemented_hands_on: [H14, H15]}
+  - {id: 10-policy-promotion, hands_on: [H16], hands_on_status: implemented, implemented_hands_on: [H16]}
+  - {id: 11-raw-observability, hands_on: [H17, H18], hands_on_status: implemented, implemented_hands_on: [H17, H18]}
+  - {id: 12-incident-alert, hands_on: [H19, H20], hands_on_status: implemented, implemented_hands_on: [H19, H20]}
+  - {id: 13-gateway-agent, hands_on: [H21, H22], hands_on_status: implemented, implemented_hands_on: [H21, H22]}
+
+hands_on_H13: {executor: guided-h13-promptfoo, verifier: guided-evidence-verifier, native_artifact: promptfoo-json}
+hands_on_H14: {executor: guided-h14-garak, verifier: guided-evidence-verifier, native_artifact: garak-report-jsonl}
+hands_on_H15: {executor: guided-h15-pyrit, verifier: guided-evidence-verifier, native_artifact: pyrit-conversation}
+hands_on_H16: {public_id: P16, contract_version: 3, executor: guided-h16-policy-promotion, verifier: guided-evidence-verifier, regression_cases: [normal-business, normal-explanation, risk-marker, risk-paraphrase], evidence: [sandbox-digest, active-digest, promotion-ledger]}
+hands_on_H17: {executor: guided-h17-telemetry, verifier: guided-evidence-verifier, stores: [loki, tempo, prometheus], learner_function: observe_request, public_id: P17, contract_version: 2}
+hands_on_H18: {executor: guided-h18-queries, verifier: guided-evidence-verifier, queries: [logql, trace-id, promql]}
+hands_on_H19:
+  executor: guided-h19-investigation
+  verifier: guided-evidence-verifier
+  learner_function: analyze_incident
+  public_id: P19
+  contract_version: 2
+  investigation_context: [client_ip, user_id, policy_rule]
+  client_ip_source: server-owned-documentation-address-fixture
+  context_evidence: [closed-execution-ledger, raw-loki-log, tempo-root-span]
+hands_on_H20: {public_id: P20, contract_version: 2, executor: guided-h20-alerts, verifier: guided-evidence-verifier, learner_artifacts: [rules.yaml, dashboard.json], products: [guided-h20-prometheus, guided-h20-alertmanager, guided-h20-grafana], evidence: [execution-build, checkpoints, pending, firing, resolved, dashboard-query]}
+
+hands_on_H01:
+  public_id: P01
+  contract_version: 3
+  executor: guided-h01-gateway
+  verifier: guided-evidence-verifier
+  provider: amazon-bedrock
+  model_id: us.amazon.nova-lite-v1:0
+  required_evidence:
+    - provider_request_id
+    - forwarded_parameters.maxTokens
+    - usage.outputTokens
+    - budget-reservation-and-settlement
+    - budget-exhausted-429-before-provider
+    - source_digest
+    - normal-64
+    - risk-512
+    - invalid-empty-message
+    - reject-model-override
+
+hands_on_H02:
+  public_id: P02
+  contract_version: p02-document-v1
+  learner_function: prepare_document
+  learner_artifacts: [learner.py]
+  executor: guided-h02-document-app
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  sdk_client: learner-created-boto3
+  authentication: server-issued-single-document-sts-900-seconds
+  embedding_model_id: amazon.titan-embed-text-v2:0
+  required_evidence:
+    - closed-execution-ledger
+    - current-suite-and-runner-digest
+    - source-requery-sha256
+    - s3-and-titan-native-request-ids
+    - learner-created-native-sdk-clients
+    - actual-sdk-source-and-parsed-embedding-responses
+    - embedding_dimension: 1024
+    - kb-data-source-index-binding
+    - normal-and-boundary-cases: 4
+    - rejected-cases-without-calls: 18
+
+hands_on_H03:
+  public_id: P03
+  contract_version: p03-search-v1
+  executor: guided-h03-sync-app
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  sdk_client: learner-created-boto3
+  authentication: server-issued-kb-readonly-sts-900-seconds
+  required_evidence:
+    - source_digest
+    - ingestion_job_id
+    - job_status: COMPLETE
+    - closed-execution-ledgers
+    - current-job-status-before-retrieval
+    - actual-retrieval-response
+    - source_uris
+    - provider-case: 1
+    - synthetic-boundary-and-error-cases: 18
+
+hands_on_H04:
+  public_id: P04
+  contract_version: p04-guardrail-v1
+  executor: guided-h04-guardrail-app
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  model_id: us.amazon.nova-lite-v1:0
+  guardrail_version: DRAFT
+  required_evidence:
+    - source_digest
+    - guardrail_id
+    - apply-normal
+    - apply-risk
+    - converse-normal
+    - converse-risk
+    - provider_request_id
+    - action
+    - stop_reason
+    - usage.outputTokens
+    - pii_action: ANONYMIZED
+    - closed-execution-ledgers
+    - current-policy-before-and-after
+    - provider-cases: 4
+    - synthetic-boundary-and-error-cases: 23
+
+hands_on_H05:
+  executor: guided-h05-nemo-dialog
+  provider: nvidia-nemo-guardrails
+  verifier: guided-evidence-verifier
+  framework_version: 0.24.1
+  required_evidence:
+    - source_digest
+    - scaffold_digest
+    - contact-exact
+    - contact-paraphrase
+    - recovery-risk
+    - unsupported
+    - user_intent
+    - flow
+    - bot_intent
+    - bot_message
+    - event_chain
+    - activated_rails
+    - llm_calls_count
+    - evaluation_id
+    - command
+    - topical_samples
+    - processed_samples
+    - total_samples
+    - intent_errors
+    - bot_intent_errors
+    - bot_message_errors
+    - artifact_digest
+    - artifact_files
+    - output_tail
+
+hands_on_H06:
+  executor: guided-h06-nemo-action
+  provider: guided-h06-action-provider
+  verifier: guided-evidence-verifier
+  framework_version: 0.24.1
+  required_evidence:
+    - source_digest
+    - scaffold_digest
+    - balance-read
+    - transfer-explicit
+    - transfer-prefixed
+    - unsupported
+    - user_intent
+    - allowed_actions
+    - cases[].expected_action_id
+    - cases[].capability_digest
+    - cases[].raw_action_events
+    - cases[].raw_bot_event
+    - cases[].action_result.kind
+    - provider_calls[].provider_call_id
+    - effects[].effect_id
+    - effect_count
+    - balance
+
+hands_on_H07:
+  executor: guided-h07-content-safety
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  framework_version: 0.24.1
+  model_id: us.amazon.nova-lite-v1:0
+  required_evidence:
+    build:
+      - source_digest
+      - config_digest
+      - scaffold_digest
+      - model_roles
+      - model_markers
+    learner_receipt:
+      - suite_id
+      - started_at
+      - observed_at
+      - cases[].input_digest
+      - cases[].response_digest
+      - cases[].activated_rails[].{type,name,stop,decisions,actions}
+      - cases[].llm_calls[].{id,task,model,provider,token_counts,timestamps}
+    gateway_ledger:
+      suite: [suite_id, started_at, created_at, closed_at, provider_mode, actual_model_id]
+      capabilities:
+        - capability_digest
+        - execution_id
+        - case_id
+        - role
+        - model_marker
+        - status
+        - issued_at
+        - expires_at
+        - reserved_at
+        - completed_at
+      calls:
+        - provider_request_id
+        - capability_digest
+        - execution_id
+        - case_id
+        - role
+        - model_marker
+        - actual_model_id
+        - request_digest
+        - response_digest
+        - usage
+        - stop_reason
+        - safety_result
+        - schema_valid
+    verdict_contract:
+      starter_hit: risk.main.status=completed
+      fixed_normal: content_safety=1,main=1
+      fixed_risk: content_safety=1,main=0,main_capability=closed_unused
+      malformed_guard: ERR
+
+hands_on_H08:
+  executor: guided-h08-self-check-input
+  source_path: guided-labs/h08-self-check-input/config/prompts.yml
+  control_endpoint: /api/hands-on/H08/verify
+  executor_endpoint: /v1/run
+  gateway_prefix: /v1/h08
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  framework_version: 0.24.1
+  model_id: us.amazon.nova-lite-v1:0
+  required_evidence:
+    build:
+      - source_digest
+      - config_digest
+      - scaffold_digest
+      - model_roles
+      - model_markers
+    learner_receipt:
+      - suite_id
+      - started_at
+      - observed_at
+      - cases[].input_digest
+      - cases[].response_digest
+      - cases[].impact_marker_observed
+      - cases[].activated_rails[].{type,name,stop,decisions,actions}
+      - cases[].llm_calls[].{id,task,model,provider,token_counts,timestamps}
+    gateway_ledger:
+      suite: [suite_id, started_at, created_at, closed_at, provider_mode, actual_model_id]
+      capabilities:
+        - capability_digest
+        - execution_id
+        - case_id
+        - role
+        - model_marker
+        - status
+        - issued_at
+        - expires_at
+        - reserved_at
+        - completed_at
+      calls:
+        - provider_request_id
+        - capability_digest
+        - execution_id
+        - case_id
+        - role
+        - model_marker
+        - actual_model_id
+        - request_digest
+        - response_digest
+        - usage
+        - stop_reason
+        - classifier_result
+        - schema_valid
+        - impact_marker_observed
+    verdict_contract:
+      starter_hit: risk.self_check_input=No,risk.main=1,risk.marker=true
+      fixed_normal: self_check_input=No,main=1
+      fixed_risk: self_check_input=Yes,main=0,main_capability=closed_unused
+      malformed_classifier: ERR
+
+hands_on_H09:
+  executor: guided-h09-presidio-redaction
+  source_path: guided-labs/h09-presidio-redaction/policy.py
+  control_endpoint: /api/hands-on/H09/verify
+  executor_endpoint: /v1/run
+  sink: guided-h09-delivery-sink
+  provider: microsoft-presidio
+  verifier: guided-evidence-verifier
+  framework_version: 2.2.362
+  required_evidence:
+    build:
+      - source_digest
+      - scaffold_digest
+      - framework_version
+      - entities
+      - recognizers[].{module,class}
+    learner_receipt:
+      - suite_id
+      - started_at
+      - observed_at
+      - cases[].input_digest
+      - cases[].candidate_digest
+      - cases[].released_digest
+      - cases[].detections[].{entity_type,start,end,score}
+      - cases[].operator
+      - cases[].delivery_id
+    sink_ledger:
+      - capability_digest
+      - execution_id
+      - case_id
+      - status
+      - delivered_digest
+      - delivered_bytes
+      - raw_marker_observed
+      - observed_at
+    verdict_contract:
+      starter_hit: synthetic-pii-reaches-delivery-sink
+      fixed_pass: clean-preserved-and-pii-replaced-before-delivery
+      malformed_or_stale: ERR
+
+hands_on_H10:
+  executor: guided-h10-self-check-output
+  source_path: guided-labs/h10-self-check-output/config/prompts.yml
+  control_endpoint: /api/hands-on/H10/verify
+  executor_endpoint: /v1/run
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  framework_version: 0.24.1
+  model_id: us.amazon.nova-lite-v1:0
+  required_evidence:
+    - source_digest
+    - config_digest
+    - main_model_provider_request_ids
+    - self_check_output_provider_request_ids
+    - activated_output_rails
+    - browser_response_digest
+    - browser_marker_observed
+    - normal-reset-guide
+    - normal-report-secret
+    - risk-recovery-code
+    - risk-internal-note
+  verdict_contract:
+    starter_hit: main-marker-reaches-browser
+    fixed_pass: normal-preserved-and-risk-stopped-after-main
+    missing_or_malformed: ERR
+
+hands_on_H11:
+  executor: guided-h11-rag-provenance
+  source_path: guided-labs/h11-rag-provenance/policy.py
+  control_endpoint: /api/hands-on/H11/verify
+  executor_endpoint: /v1/run
+  provider: guided-bedrock-gateway
+  verifier: guided-evidence-verifier
+  embedding_model_id: amazon.titan-embed-text-v2:0
+  required_evidence:
+    - authenticated_principal
+    - client_claims
+    - candidate_ids
+    - selected_document_id
+    - selected_source_uri
+    - provider_request_id
+    - dimensions: 1024
+    - normal-approved
+    - client-self-approval
+    - client-tenant-spoof
+    - client-role-spoof
+  verdict_contract:
+    starter_hit: browser-claims-admit-forbidden-source
+    fixed_pass: server-principal-and-provenance-filter-before-vector-ranking
+    missing_or_malformed: ERR
+
+hands_on_H12:
+  practice_id: P12
+  contract_version: 2
+  executor: guided-h12-application-pipeline
+  source_path: guided-labs/h12-application-pipeline/pipeline.py
+  control_endpoint: /api/practice/P12/verify
+  executor_endpoint: /v1/run
+  providers: [guided-p12-context, guided-p12-privacy, guided-p12-nemo, guided-bedrock-gateway]
+  verifier: guided-evidence-verifier
+  verifier_endpoint: /v1/verify/p12
+  contract_path: guided-contracts/p12.json
+  required_evidence:
+    - current_suite_and_scaffold_binding
+    - authenticated_principal_and_tenant
+    - original_input_and_actual_stage_dataflow
+    - closed_context_privacy_nemo_gateway_ledgers
+    - normal_and_all_contract_stop_paths
+    - unique_provider_request_ids_and_end_turn
+    - unchanged_before_and_after_builds
+  verdict_contract:
+    starter_incomplete: ERR
+    fixed_pass: actual-product-calls-and-dataflow-with-normal-and-stop-paths
+    missing_or_mismatched_or_truncated: ERR
+
+hands_on_H22:
+  executor: guided-h22-host
+  provider: guided-h22-mcp-server
+  verifier: guided-evidence-verifier
+  protocol_version: 2026-07-28
+  required_evidence:
+    - tool_inventory_digest
+    - source_digest
+    - no-approval
+    - self-approval
+    - changed-args
+    - expired-approval
+    - exact-approved-call
+    - approval-reuse
+    - effect_counts: [0, 0, 0, 1, 1]
+
+hands_on_H21:
+  executor: guided-h21-host
+  provider: guided-h21-provider
+  mcp_servers: [guided-h21-trusted-mcp, guided-h21-untrusted-mcp]
+  verifier: guided-evidence-verifier
+  protocol_version: 2026-07-28
+  required_evidence:
+    - source_digest
+    - tool_inventory_digest
+    - model-not-allowed
+    - mcp-server-not-allowed
+    - tool-not-allowed
+    - tool-call-budget
+    - tool-result-byte-limit
+    - state-owner-mismatch
+    - oauth-audience-invalid
+    - shared-trace-id
+
+hands_on_H23: {public_id: P23, contract_version: 1, executor: guided-model-call, verifier: guided-evidence-verifier, learner_function: forward_question, cases: [normal, blank, provider-error], normal_provider: aws-bedrock, error_provider: dedicated-failure-fixture}

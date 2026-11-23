@@ -1,0 +1,39 @@
+{
+  "version": "2026-08-14-tuning-start",
+  "mode": "enforce",
+  "prompt_injection": {
+    "enabled": true,
+    "risk_threshold": 0.8,
+    "action": "block",
+    "benign_event_types": []
+  },
+  "sensitive_data": {
+    "enabled": true,
+    "entities": ["EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD", "KR_RRN", "DEMO_API_KEY"],
+    "patterns": {
+      "EMAIL_ADDRESS": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b",
+      "PHONE_NUMBER": "(?<!\\d)(?:\\+?\\d{1,3}[ -]?)?(?:\\d{2,3}[ -]?)?\\d{3,4}[ -]?\\d{4}(?!\\d)",
+      "CREDIT_CARD": "\\b(?:\\d[ -]*?){13,16}\\b",
+      "KR_RRN": "\\b\\d{6}-[1-4]\\d{6}\\b",
+      "DEMO_API_KEY": "\\bDEMO_API_KEY=[A-Za-z0-9-]+\\b"
+    },
+    "action": "redact"
+  },
+  "rag_tenant_boundary": {"enabled": true, "action": "block"},
+  "agent_approval": {
+    "enabled": true,
+    "dangerous_tools": ["delete_animal", "debug_sql", "send_message"],
+    "action": "block"
+  },
+  "request_limit": {
+    "enabled": true,
+    "window_seconds": 60,
+    "max_requests_per_window": 5,
+    "action": "block"
+  },
+  "anomaly_detection": {
+    "minimum_events": 5,
+    "block_ratio_threshold": 0.5,
+    "critical_rule_count_threshold": 1
+  }
+}

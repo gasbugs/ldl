@@ -1,0 +1,15 @@
+[Unit]
+Description=Tenant 03 practice reset bridge
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/llm-defense-lab
+ExecStart=/usr/bin/python3 %h/llm-defense-lab/tools/guided-reset-bridge.py
+Restart=on-failure
+RestartSec=2s
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target

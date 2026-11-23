@@ -1,0 +1,343 @@
+"""Learner-owned H01 Bedrock Gateway and its read-only evidence endpoint."""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import os
+import sqlite3
+import time
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Literal
+
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError, PartialCredentialsError, ProfileNotFound
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
+
+import learner
+from provider import InvocationError, RecordingClient
+
+
+MODEL_ID = "us.amazon.nova-lite-v1:0"
+REGION = "us-east-1"
+CONTROL_TOKEN = os.environ["GUIDED_CONTROL_LAB01_TOKEN"]
+VERIFIER_TOKEN = os.environ["GUIDED_VERIFIER_LAB01_TOKEN"]
+PROVIDER_MODE = os.getenv("GUIDED_PROVIDER_MODE", "aws")
+DATABASE_PATH = os.getenv("GUIDED_LAB01_DATABASE", "/tmp/receipts.sqlite3")
+SOURCE_PATH = Path(__file__).resolve()
+
+Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
+
+
+@contextmanager
+def connect():
+    database = sqlite3.connect(DATABASE_PATH, timeout=10)
+    database.row_factory = sqlite3.Row
+    try:
+        with database:
+            yield database
+    finally:
+        database.close()
+
+
+with connect() as database:
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS receipts "
+        "(execution_id TEXT PRIMARY KEY, receipt_json TEXT NOT NULL)"
+    )
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS executions "
+        "(execution_id TEXT PRIMARY KEY, record_json TEXT NOT NULL)"
+    )
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS budgets "
+        "(client_id TEXT PRIMARY KEY, window_start INTEGER NOT NULL, "
+        "used_tokens INTEGER NOT NULL, reserved_tokens INTEGER NOT NULL)"
+    )
+    database.execute(
+        "CREATE TABLE IF NOT EXISTS reservations "
+        "(reservation_id TEXT PRIMARY KEY, client_id TEXT NOT NULL, "
+        "reserved_tokens INTEGER NOT NULL, actual_tokens INTEGER, status TEXT NOT NULL)"
+    )
+
+
+class BudgetExceededError(RuntimeError):
+    pass
+
+
+class BudgetLedger:
+    """Atomic one-hour output-token reservations with actual-use settlement."""
+
+    @staticmethod
+    def limit(client_id: str) -> int:
+        return 1 if client_id.startswith("budget-one-token-") else 1000
+
+    def reserve(self, client_id: str, tokens: int) -> dict:
+        window_start = int(time.time() // 3600 * 3600)
+        reservation_id = str(uuid.uuid4())
+        with connect() as database:
+            database.execute("BEGIN IMMEDIATE")
+            row = database.execute(
+                "SELECT window_start,used_tokens,reserved_tokens FROM budgets WHERE client_id=?",
+                (client_id,),
+            ).fetchone()
+            if row is None or row["window_start"] != window_start:
+                used = reserved = 0
+                database.execute(
+                    "INSERT OR REPLACE INTO budgets VALUES(?,?,?,?)",
+                    (client_id, window_start, used, reserved),
+                )
+            else:
+                used, reserved = row["used_tokens"], row["reserved_tokens"]
+            if used + reserved + tokens > self.limit(client_id):
+                raise BudgetExceededError("hourly output-token budget exhausted")
+            database.execute(
+                "UPDATE budgets SET reserved_tokens=reserved_tokens+? WHERE client_id=?",
+                (tokens, client_id),
+            )
+            database.execute(
+                "INSERT INTO reservations VALUES(?,?,?,?,?)",
+                (reservation_id, client_id, tokens, None, "reserved"),
+            )
+        return {"reservation_id": reservation_id, "client_id": client_id,
+                "reserved_tokens": tokens, "window_start": window_start,
+                "limit_tokens": self.limit(client_id)}
+
+    def settle(self, reservation_id: str, actual_tokens: int) -> dict:
+        with connect() as database:
+            database.execute("BEGIN IMMEDIATE")
+            row = database.execute(
+                "SELECT client_id,reserved_tokens,status FROM reservations WHERE reservation_id=?",
+                (reservation_id,),
+            ).fetchone()
+            if row is None or row["status"] != "reserved" or type(actual_tokens) is not int:
+                raise RuntimeError("invalid budget settlement")
+            database.execute(
+                "UPDATE budgets SET reserved_tokens=reserved_tokens-?,used_tokens=used_tokens+? WHERE client_id=?",
+                (row["reserved_tokens"], actual_tokens, row["client_id"]),
+            )
+            database.execute(
+                "UPDATE reservations SET actual_tokens=?,status='settled' WHERE reservation_id=?",
+                (actual_tokens, reservation_id),
+            )
+        return {"reservation_id": reservation_id, "client_id": row["client_id"],
+                "reserved_tokens": row["reserved_tokens"], "actual_tokens": actual_tokens}
+
+    def cancel(self, reservation_id: str) -> dict:
+        with connect() as database:
+            database.execute("BEGIN IMMEDIATE")
+            row = database.execute(
+                "SELECT client_id,reserved_tokens,status FROM reservations WHERE reservation_id=?",
+                (reservation_id,),
+            ).fetchone()
+            if row is None or row["status"] != "reserved":
+                raise RuntimeError("invalid budget cancellation")
+            database.execute(
+                "UPDATE budgets SET reserved_tokens=reserved_tokens-? WHERE client_id=?",
+                (row["reserved_tokens"], row["client_id"]),
+            )
+            database.execute(
+                "UPDATE reservations SET status='cancelled' WHERE reservation_id=?",
+                (reservation_id,),
+            )
+        return {"reservation_id": reservation_id, "client_id": row["client_id"],
+                "reserved_tokens": row["reserved_tokens"]}
+
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    execution_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+    started_at: str
+    scenario: Literal["normal", "risk", "preflight", "chat"]
+    client_id: str = Field(pattern=r"^[a-z0-9-]{1,64}$")
+
+
+def bearer(expected: str, authorization: str | None) -> None:
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not hmac.compare_digest(token, expected):
+        raise HTTPException(status_code=401, detail="invalid service credential")
+
+
+def require_control(authorization: str | None = Header(default=None)) -> None:
+    bearer(CONTROL_TOKEN, authorization)
+
+
+def require_verifier(authorization: str | None = Header(default=None)) -> None:
+    bearer(VERIFIER_TOKEN, authorization)
+
+
+def source_digest() -> str:
+    digest = hashlib.sha256()
+    for name in ("server.py", "learner.py", "provider.py"):
+        digest.update(name.encode() + b"\0" + SOURCE_PATH.with_name(name).read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def runner_digests() -> dict[str, str]:
+    return {name: hashlib.sha256(SOURCE_PATH.with_name(name).read_bytes()).hexdigest()
+            for name in ("server.py", "provider.py")}
+
+
+def save_receipt(receipt: dict) -> None:
+    try:
+        with connect() as database:
+            database.execute(
+                "INSERT INTO receipts VALUES(?,?)",
+                (receipt["execution_id"], json.dumps(receipt, ensure_ascii=False)),
+            )
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="execution ID already exists") from exc
+
+
+def begin_execution(request: ChatRequest) -> dict:
+    record = {
+        "execution_id": request.execution_id, "started_at": request.started_at,
+        "scenario": request.scenario, "source_digest": source_digest(),
+        "runner_digests": runner_digests(),
+        "activity_id": "P01", "internal_activity_id": "H01", "contract_version": 3,
+        "closed": False, "provider_mode": PROVIDER_MODE,
+        "request_digest": hashlib.sha256(json.dumps(request.model_extra or {}, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest(),
+    }
+    try:
+        with connect() as database:
+            database.execute("BEGIN IMMEDIATE")
+            if database.execute("SELECT 1 FROM receipts WHERE execution_id=?", (request.execution_id,)).fetchone():
+                raise HTTPException(status_code=409, detail="execution ID already exists")
+            database.execute("INSERT INTO executions VALUES (?, ?)", (request.execution_id, json.dumps(record)))
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="execution ID already exists") from exc
+    return record
+
+
+def close_execution(record: dict, recorder: RecordingClient, status: int) -> None:
+    record.update(
+        closed=True, http_status=status, observed_at=datetime.now(timezone.utc).isoformat(),
+        invocation_attempts=recorder.attempts, provider_attempts=recorder.provider_attempts,
+        provider_results=len(recorder.results),
+        provider_request_ids=[item.get("ResponseMetadata", {}).get("RequestId") for item in recorder.results],
+        client_id=recorder.client_id, budget_events=recorder.budget_events,
+    )
+    with connect() as database:
+        database.execute("UPDATE executions SET record_json=? WHERE execution_id=?", (json.dumps(record), record["execution_id"]))
+
+
+app = FastAPI(title="P01 Learner Bedrock Gateway", docs_url=None, redoc_url=None)
+
+
+@app.get("/livez")
+def livez() -> dict[str, str]:
+    return {"status": "alive"}
+
+
+@app.get("/readyz")
+def readyz() -> dict[str, str]:
+    with connect() as database:
+        database.execute("SELECT 1").fetchone()
+    return {"status": "ready", "provider_check": "not-run"}
+
+
+@app.post("/v1/chat")
+def chat(request: ChatRequest, _authorized: None = Depends(require_control)) -> dict:
+    body = dict(request.model_extra or {})
+    if PROVIDER_MODE not in {"contract", "aws"}:
+        raise HTTPException(status_code=503, detail="unsupported provider mode")
+    record = begin_execution(request)
+    recorder = RecordingClient(
+        request.execution_id,
+        sdk_client_factory=(lambda: boto3.client("bedrock-runtime", region_name=REGION)) if PROVIDER_MODE == "aws" else None,
+        budget=BudgetLedger(), client_id=request.client_id,
+    )
+    try:
+        result = recorder.observed_result(learner.handle_request(body, recorder))
+    except NotImplementedError as exc:
+        status = 502 if recorder.attempts else 501
+        close_execution(record, recorder, status)
+        raise HTTPException(status_code=status, detail="P01 implementation is incomplete") from exc
+    except ValueError as exc:
+        close_execution(record, recorder, 502 if recorder.attempts else 422)
+        if recorder.attempts:
+            raise HTTPException(status_code=502, detail="request rejected after provider invocation") from exc
+        raise HTTPException(status_code=422, detail="invalid chat request") from exc
+    except BudgetExceededError as exc:
+        close_execution(record, recorder, 429)
+        raise HTTPException(status_code=429, detail="hourly output-token budget exhausted") from exc
+    except (BotoCoreError, ClientError, InvocationError) as exc:
+        close_execution(record, recorder, 502)
+        code = "provider_error"
+        if isinstance(exc, (NoCredentialsError, PartialCredentialsError, ProfileNotFound)):
+            code = "credentials_missing"
+        elif isinstance(exc, ClientError):
+            code = {
+                "AccessDeniedException": "access_denied",
+                "ResourceNotFoundException": "model_unavailable",
+                "ModelNotReadyException": "model_unavailable",
+                "UnrecognizedClientException": "credentials_invalid",
+                "InvalidClientTokenId": "credentials_invalid",
+                "ExpiredTokenException": "credentials_invalid",
+            }.get(exc.response.get("Error", {}).get("Code"), code)
+        raise HTTPException(status_code=502, detail={"provider_error": code}) from exc
+    except Exception as exc:
+        close_execution(record, recorder, 502)
+        raise HTTPException(status_code=502, detail="learner implementation failed") from exc
+    forwarded = recorder.calls[0]
+    effective_max_tokens = forwarded["inferenceConfig"]["maxTokens"]
+    observed_at = datetime.now(timezone.utc).isoformat()
+    receipt = {
+        "execution_id": request.execution_id,
+        "started_at": request.started_at,
+        "observed_at": observed_at,
+        "scenario": request.scenario,
+        "requested_max_output_tokens": body.get("max_output_tokens"),
+        "effective_max_output_tokens": effective_max_tokens,
+        "source_digest": record["source_digest"],
+        "runner_digests": record["runner_digests"],
+        "provider_request_id": result["ResponseMetadata"]["RequestId"],
+        "provider_mode": PROVIDER_MODE,
+        "model_id": forwarded.get("modelId"),
+        "region": REGION,
+        "forwarded_parameters": forwarded.get("inferenceConfig"),
+        "forwarded_messages": forwarded.get("messages"),
+        "usage": result["usage"],
+        "stop_reason": result.get("stopReason", "unknown"),
+        "response_text": "".join(part.get("text", "") for part in result.get("output", {}).get("message", {}).get("content", [])),
+        "activity_id": "P01",
+        "internal_activity_id": "H01",
+        "contract_version": 3,
+        "upstream_called": True,
+        "client_id": request.client_id,
+        "budget_events": recorder.budget_events,
+    }
+    save_receipt(receipt)
+    close_execution(record, recorder, 200)
+    return receipt
+
+
+@app.get("/v1/build-info")
+def build_info(_authorized: None = Depends(require_verifier)) -> dict:
+    return {"component": "guided-h01-gateway", "source_digest": source_digest(),
+            "runner_digests": runner_digests()}
+
+
+@app.get("/v1/receipts/{execution_id}")
+def receipt(execution_id: str, _authorized: None = Depends(require_verifier)) -> dict:
+    with connect() as database:
+        row = database.execute(
+            "SELECT receipt_json FROM receipts WHERE execution_id=?", (execution_id,)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="receipt not found")
+    return json.loads(row["receipt_json"])
+
+
+@app.get("/v1/executions/{execution_id}")
+def execution(execution_id: str, _authorized: None = Depends(require_verifier)) -> dict:
+    with connect() as database:
+        row = database.execute("SELECT record_json FROM executions WHERE execution_id=?", (execution_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="execution not found")
+    return json.loads(row["record_json"])

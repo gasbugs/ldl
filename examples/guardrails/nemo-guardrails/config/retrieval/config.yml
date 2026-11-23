@@ -1,0 +1,32 @@
+models:
+  - type: main
+    engine: openai
+    model: us.amazon.nova-lite-v1:0
+    parameters:
+      base_url: http://llm-security-bedrock-gateway:8080/v1
+      api_key: module08-bedrock-gateway-token
+      temperature: 0.0
+      max_tokens: 320
+
+instructions:
+  - type: general
+    content: |
+      Inspect the retrieved context through the configured retrieval rail.
+
+rails:
+  dialog:
+    user_messages:
+      embeddings_only: true
+      embeddings_only_similarity_threshold: 0.45
+  retrieval:
+    flows:
+      - mask retrieval with Presidio
+
+core:
+  embedding_search_provider:
+    name: default
+    parameters:
+      embedding_engine: FastEmbed
+      embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      embedding_parameters:
+        cache_dir: /opt/nemo-cache

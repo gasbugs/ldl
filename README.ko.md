@@ -4,9 +4,9 @@
 
 LLM Defense Lab(LDL)은 브라우저에서 AI 애플리케이션의 보안 통제를 구현하고 검증하는 실습 환경입니다. Control Center에서 24개의 미션을 열어 Bedrock 모델 접근, 개인정보 보호, 가드레일, 사용량 제한, 검색 권한, 보안 관측, MCP 도구 권한을 실습합니다.
 
-이 저장소는 LDL을 AWS에 배포하는 Terraform과 첫 부팅 스크립트를 관리합니다. 기본 VPC와 서브넷이 있는 `us-east-1`에서 전용 Ubuntu EC2 `m6a.large` 한 대, 암호화된 100 GiB gp3 볼륨, IAM 역할, 보안 그룹, Grafana 로그인용 Secrets Manager 시크릿을 준비합니다. 첫 부팅에서 [setup 저장소](https://github.com/gasbugs/owasp-llm-application-security-lab)의 고정 커밋을 받아 Control Center와 실습 서비스를 설치합니다.
+이 저장소는 Bedrock 이후 1~7장 방어 실습 코드, Compose, 검증 도구와 AWS 배포를 관리합니다. 기본 VPC와 서브넷이 있는 `us-east-1`에서 전용 Ubuntu EC2 `m6a.large` 한 대, 암호화된 100 GiB gp3 볼륨, IAM 역할, 보안 그룹, Grafana 로그인용 Secrets Manager 시크릿을 준비합니다. 첫 부팅에서 LDL 저장소를 받아 Control Center와 실습 서비스를 설치합니다.
 
-[Bedrock API 실습 자료](bedrock-api-lab/)에는 Nova Lite·Titan·Knowledge Base 실습의 원문 문서, IAM 정책 템플릿, Boto3 버전 고정 파일을 둡니다. 짧은 Tool Use Python 예제는 수강생이 직접 작성합니다. 이 자료는 Control Center가 사용하는 LAL 런타임과 분리됩니다.
+[Bedrock API 실습 자료](bedrock-api-lab/)에는 Nova Lite·Titan·Knowledge Base 실습의 원문 문서, IAM 정책 템플릿, Boto3 버전 고정 파일을 둡니다. 짧은 Tool Use Python 예제는 수강생이 직접 작성합니다. Gateway·가드레일·평가·관측·Control Center 런타임도 이 저장소에서 관리합니다.
 
 ## 운영자 배포
 

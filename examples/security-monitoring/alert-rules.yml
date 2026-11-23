@@ -1,0 +1,132 @@
+# CUSTOM FILE: project-authored Prometheus recording and alert rules.
+# Format reference: Prometheus rule files (Apache-2.0), https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+groups:
+  - name: llm-security
+    interval: 5s
+    rules:
+      - record: llm:chat_block_ratio_5m
+        expr: sum(rate(llm_guardrail_decisions_total{engine="nemo",direction="chat",decision="block"}[5m])) / clamp_min(sum(rate(llm_guardrail_decisions_total{engine="nemo",direction="chat"}[5m])), 0.001)
+
+      - alert: LLMBlockingSpike
+        expr: sum(increase(llm_guardrail_decisions_total{engine="nemo",direction="chat",decision="block"}[5m])) >= 2
+        for: 0m
+        labels:
+          severity: high
+        annotations:
+          summary: Multiple LLM requests were blocked in five minutes
+          runbook: Inspect the matching policy rule in Loki and follow its trace in Tempo
+
+      # Learners toggle only this deterministic rule while observing the full
+      # Prometheus -> Alertmanager -> webhook firing/resolved lifecycle.
+      - alert: Module08LearnerDrill
+        expr: vector(0) == 1
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: Module 08 learner alert lifecycle drill
+          runbook: Restore vector(0) == 1 after the firing notification is observed
+
+      - alert: LLMHighBlockRatio
+        expr: llm:chat_block_ratio_5m > 0.5 and sum(increase(llm_guardrail_decisions_total{engine="nemo",direction="chat"}[5m])) >= 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than half of recent LLM requests were blocked
+          runbook: Compare attack traffic with recent policy or model changes
+
+      - alert: LLMGatewayUnavailable
+        expr: up{job=~"llm-security-gateway|llm-security-retrieval|llm-security-application|amazon-bedrock-gateway"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: LLM security gateway scrape failed
+          runbook: Check gateway container state and its nearest stdout logs
+
+      - alert: LLMObservabilityPipelineUnavailable
+        expr: up{job=~"alloy|loki|tempo|alertmanager|alert-webhook"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: An observability pipeline component is unavailable
+          runbook: Use the job label to inspect the failed collector or backend
+
+      - alert: AlertDeliveryStalled
+        expr: (time() - llm_alert_notification_last_received_timestamp_seconds > 900) and (llm_alert_notification_last_received_timestamp_seconds > 0) and on() (sum(ALERTS{alertstate="firing"}) > 0)
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Firing alerts have not reached the webhook receiver recently
+          runbook: Inspect Alertmanager notification errors and receiver connectivity
+
+      - alert: TelemetryDataDropped
+        expr: (sum(increase(otelcol_receiver_failed_log_records_total[5m])) or vector(0)) + (sum(increase(otelcol_receiver_failed_spans_total[5m])) or vector(0)) + (sum(increase(loki_write_dropped_entries_total[5m])) or vector(0)) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Alloy failed to receive or deliver telemetry data
+          runbook: Inspect receiver failures, Loki drop reasons, and exporter destination health
+
+      - alert: AlloyExporterQueuePressure
+        expr: max(otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) > 0.8
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: An Alloy OTLP exporter queue is more than eighty percent full
+          runbook: Inspect the destination backend before the bounded persistent queue fills
+
+      - alert: BedrockUpstreamFailure
+        expr: increase(llm_upstream_calls_total{decision="infra"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Amazon Bedrock upstream request failed
+          runbook: Follow the failed trace and inspect the local Bedrock Gateway and Converse error
+
+      - alert: LLMHighP95Latency
+        expr: histogram_quantile(0.95, sum by (le) (rate(bedrock_request_duration_seconds_bucket{task="main"}[5m]))) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: LLM chat p95 latency exceeds ten seconds
+          runbook: Compare Bedrock Converse latency, token counts, errors, and estimated cost
+
+      - alert: SecurityAuditDeliveryStalled
+        expr: llm_audit_oldest_pending_seconds > 30 or llm_log_oldest_pending_seconds > 30
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Committed security events are waiting for collector acknowledgement
+
+      - alert: SecurityAuditQueueRejected
+        expr: increase(llm_audit_delivery_total{result="rejected"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Security event outbox reached its bounded capacity
+
+      - alert: OTLPExporterDeliveryFailure
+        expr: (sum(increase(otelcol_exporter_send_failed_log_records_total[5m])) or vector(0)) + (sum(increase(otelcol_exporter_send_failed_spans_total[5m])) or vector(0)) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: Alloy is retrying failed backend telemetry deliveries
+
+      - alert: SecurityAuditStorageUnavailable
+        expr: llm_audit_database_available == 0 or increase(llm_audit_storage_errors_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: Application cannot commit its security audit events

@@ -1,0 +1,142 @@
+// CUSTOM FILE: project-authored Grafana Alloy OTLP routing configuration.
+// Format reference: Alloy components (Apache-2.0), https://grafana.com/docs/alloy/latest/reference/config/
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// The application sends structured security logs and trace spans over OTLP.
+// Alloy does not receive the Docker API socket; the observed application
+// explicitly chooses which security events cross this telemetry boundary.
+// Ingress is acknowledged only after the persistent exporter queue accepts it.
+// A volatile batch processor before that queue would acknowledge uncommitted data.
+otelcol.receiver.otlp "application" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    logs   = [otelcol.processor.memory_limiter.application.input]
+    traces = [otelcol.processor.memory_limiter.application.input]
+  }
+}
+
+otelcol.processor.memory_limiter "application" {
+  check_interval = "1s"
+  limit          = "256MiB"
+
+  output {
+    logs   = [otelcol.exporter.otlphttp.loki.input]
+    traces = [otelcol.processor.attributes.privacy.input]
+  }
+}
+
+otelcol.processor.attributes "privacy" {
+  action {
+    key = "http.url"
+    action = "delete"
+  }
+  action {
+    key = "url.full"
+    action = "delete"
+  }
+  action {
+    key = "url.query"
+    action = "delete"
+  }
+  action {
+    key = "http.target"
+    action = "delete"
+  }
+  action {
+    key = "client.address"
+    action = "delete"
+  }
+  action {
+    key = "net.peer.ip"
+    action = "delete"
+  }
+  action {
+    key = "network.peer.address"
+    action = "delete"
+  }
+  action {
+    key = "http.request.header.authorization"
+    action = "delete"
+  }
+  action {
+    key = "http.request.header.cookie"
+    action = "delete"
+  }
+  action {
+    key = "http.response.header.set_cookie"
+    action = "delete"
+  }
+  action {
+    key = "gen_ai.prompt"
+    action = "delete"
+  }
+  action {
+    key = "gen_ai.completion"
+    action = "delete"
+  }
+  action {
+    key = "gen_ai.input.messages"
+    action = "delete"
+  }
+  action {
+    key = "gen_ai.output.messages"
+    action = "delete"
+  }
+  output {
+    traces = [otelcol.exporter.otlphttp.tempo.input]
+  }
+}
+
+otelcol.storage.file "security_queue" {
+  directory = "/var/lib/alloy/data/security-queue"
+}
+
+otelcol.exporter.otlphttp "loki" {
+  logs_endpoint = "http://loki:3100/otlp/v1/logs"
+
+  client {
+    endpoint = "http://loki:3100/otlp"
+  }
+
+  sending_queue {
+    enabled       = true
+    num_consumers = 2
+    queue_size    = 2048
+    storage       = otelcol.storage.file.security_queue.handler
+  }
+
+  retry_on_failure {
+    enabled          = true
+    initial_interval = "1s"
+    max_interval     = "30s"
+    max_elapsed_time = "0s"
+  }
+}
+
+otelcol.exporter.otlphttp "tempo" {
+  traces_endpoint = "http://tempo:4318/v1/traces"
+
+  client {
+    endpoint = "http://tempo:4318"
+  }
+
+  sending_queue {
+    enabled       = true
+    num_consumers = 2
+    queue_size    = 2048
+    storage       = otelcol.storage.file.security_queue.handler
+  }
+
+  retry_on_failure {
+    enabled          = true
+    initial_interval = "1s"
+    max_interval     = "30s"
+    max_elapsed_time = "0s"
+  }
+}

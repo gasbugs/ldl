@@ -1,0 +1,288 @@
+# LLM Security Control Plane
+
+이 디렉터리는 기존 `examples/guardrails/presidio/`, `examples/guardrails/nemo-guardrails/`,
+`docker/vuln-rag/`를 변경하지 않고 추가한 NeMo 중심 허브·스포크 참조 구현이다.
+기존 18090~18092 직렬형 실습은 호환성 비교용으로 계속 사용할 수 있다.
+
+## 책임과 요청 흐름
+
+```text
+Browser
+  -> Application Gateway :18095
+       authentication -> authorization -> classified RAG selection
+       -> NeMo Policy Hub :18094
+            -> Presidio Privacy Spoke :18093 (input)
+            -> project Nova general-safety input rail (Nova Lite)
+            -> application self-check input rail (high-assurance only)
+            -> Presidio Privacy Spoke (authorized retrieval text)
+            -> local Bedrock Gateway :18096 -> Nova Lite main model
+            -> project Nova general-safety output rail (Nova Lite)
+            -> application self-check output rail (high-assurance only)
+            -> Presidio Privacy Spoke (output)
+       <- Application final enforcement
+  <- Browser
+```
+
+Browser chat has one external entry point: Application `:18095`. The local
+Bedrock Gateway `:18096` is an internal model/retrieval boundary and rejects
+protected requests unless they carry the generated service Bearer token from
+the mode-`0600` `.state/module08-compose.env`. Health and metrics remain
+available to local probes without that token.
+
+Application은 인증, 인가, 정보 등급, RAG 선택과 최종 응답 승인을 소유한다.
+프로젝트 Control Plane은 전체 처리 순서를 소유하고 NeMo는 공식 `config.yml`의
+Input·Output Rail을 실행한다. Presidio Spoke는 개인정보 탐지와 비식별화 후보만 반환하며
+`allow`, `block`, `redact`를 결정하지 않는다.
+
+Application 인증은 교육용 `application-users.yaml`의 salt 포함 PBKDF2-SHA256 verifier로 비밀번호를 확인하고,
+Application이 보관하는 RSA 개인키로 5분 Access Token과 30분 Refresh Token을
+발급한다. `/api/chat`은 RS256 서명, `kid`, `iss`, `aud`, `exp`, `nbf`, `jti`와
+SQLite 폐기 상태를 모두 확인한 뒤에만 인가를 시작한다. 실제 서비스에서는 이
+내장 발급기를 OIDC IdP와 조직의 계정 수명주기로 교체해야 한다.
+
+## 명시적 버전 관리
+
+`versions.lock.yaml`은 Python base digest, 직접 설치하는 Python package, Bedrock Model ID,
+네 이미지의 semantic version, Promptfoo·Garak과 테스트용 Node image digest를 고정한다.
+`runtime-contract.yaml`은 교재·배포·브라우저 E2E가 공유하는 host/container port,
+`bedrock_main` stage와 Browser 단일 진입점을 고정한다.
+NeMo Hub는 시작할 때 local Bedrock Gateway의 provider와 Model ID를 비교하며 다르면
+`/healthz`를 실패시키고 `/api/chat`을 503으로 닫는다. 자동 downgrade는 사용하지 않는다.
+
+검증 환경의 실제 모델은 다음과 같다.
+
+- Main·프로젝트 Nova 일반 위해·애플리케이션 Self-check: `us.amazon.nova-lite-v1:0`
+
+## 이미지 빌드와 실행
+
+네 Containerfile은 이 디렉터리를 build context로 사용한다.
+
+수강생 Module 08은 완성 스택을 먼저 실행하지 않는다. `prepare-module08-runtime.sh`는
+Nova Lite와 로컬 서비스 Token만 만들고 Knowledge Base ID는 비워 둔다. Retrieval을
+처음 배우는 05 차시에서 `restore-module08-aws.sh --repair`가 RAG 자원을 추가하며,
+08 차시에서 Application을 처음 포함한 최종 스택을 조립한다. 아래 일괄 Build·실행은
+게시자 E2E와 이미 학습을 마친 환경의 복구용이다.
+
+```bash
+bash llm-security-control-plane/deploy/build-images.sh
+```
+
+기본 실행은 `GUARD_MODE=prevent`, `ASSURANCE_PROFILE=high-assurance`다. 모든 publish는
+WSL loopback에만 bind하며 18093~18096을 외부에 공개하지 않는다.
+
+```bash
+bash llm-security-control-plane/deploy/start-stack.sh
+```
+
+```bash
+bash llm-security-control-plane/deploy/stop-stack.sh
+```
+
+## 03 UI 후보의 독립 Hands-on 실행 환경
+
+기존 02 Compose는 바꾸지 않는다. 별도 `examples/security-monitoring/compose.guided.yaml`은 H01~H22를 각각 독립된 learner source·상태·증거 namespace로 실행한다. 화면의 13개 탭에서 입력할 정확한 코드를 확인하고, 수강생이 해당 서비스만 다시 Build·생성해야 검증 결과가 바뀐다. Practice는 현재 구현·UI·검증 범위에서 제외한다.
+
+처음 실행할 때만 경계별 Token을 따로 만든다. Browser에는 이 값이 전달되지 않고 Control Center의 HttpOnly session cookie만 전달된다.
+
+```bash
+cd ~/llm-defense-lab
+mkdir -p llm-security-control-plane/.state/guided-gateway
+
+cat > llm-security-control-plane/.state/guided-course.env <<EOF
+AWS_PROFILE=default
+LOCAL_UID=$(id -u)
+LOCAL_GID=$(id -g)
+GUIDED_PROVIDER_MODE=aws
+GUIDED_SESSION_SECRET=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB01_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB02_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB03_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB04_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB05_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB06_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB07_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB08_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB09_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB10_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB11_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB12_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB13_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB14_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB15_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_LAB16_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_OBSERVABILITY_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_H18_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_H19_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_H17_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_H20_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_H20_TOKEN=$(openssl rand -hex 32)
+GUIDED_H20_WEBHOOK_TOKEN=$(openssl rand -hex 32)
+GUIDED_P20_GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 18)
+GUIDED_P20_GRAFANA_PASSWORD=$(openssl rand -hex 18)
+GUIDED_H06_PROVIDER_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_H06_PROVIDER_ACTION_TOKEN=$(openssl rand -hex 32)
+GUIDED_H06_PROVIDER_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H06_CAPABILITY_SECRET=$(openssl rand -hex 32)
+GUIDED_H07_GATEWAY_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_H07_GATEWAY_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H07_CAPABILITY_SECRET=$(openssl rand -hex 32)
+GUIDED_H08_GATEWAY_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_H08_GATEWAY_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H08_CAPABILITY_SECRET=$(openssl rand -hex 32)
+GUIDED_H09_SINK_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_H09_SINK_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H09_CAPABILITY_SECRET=$(openssl rand -hex 32)
+GUIDED_H10_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_H10_GATEWAY_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H11_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_H11_GATEWAY_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_GATEWAY_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_GATEWAY_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_CONTEXT_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_CONTEXT_SERVICE_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_CONTEXT_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_PRIVACY_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_PRIVACY_SERVICE_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_PRIVACY_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_NEMO_CONTROL_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_NEMO_SERVICE_TOKEN=$(openssl rand -hex 32)
+GUIDED_P12_NEMO_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H13_TARGET_TOKEN=$(openssl rand -hex 32)
+GUIDED_H14_TARGET_TOKEN=$(openssl rand -hex 32)
+GUIDED_H15_TARGET_TOKEN=$(openssl rand -hex 32)
+GUIDED_GRAFANA_PASSWORD=$(openssl rand -hex 18)
+GUIDED_CONTROL_H21_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_H22_TOKEN=$(openssl rand -hex 32)
+GUIDED_CONTROL_VERIFIER_TOKEN=$(openssl rand -hex 32)
+GUIDED_LAB01_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_NEMO_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_H02_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_LAB02_PROVISION_TOKEN=$(openssl rand -hex 32)
+GUIDED_H03_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_LAB03_PROVISION_TOKEN=$(openssl rand -hex 32)
+GUIDED_H04_GATEWAY_TOKEN=$(openssl rand -hex 32)
+GUIDED_LAB04_PROVISION_TOKEN=$(openssl rand -hex 32)
+GUIDED_H21_PROVIDER_TOKEN=$(openssl rand -hex 32)
+GUIDED_H21_OAUTH_SECRET=$(openssl rand -hex 32)
+GUIDED_H22_APPROVAL_SECRET=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB01_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB02_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB03_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB04_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB05_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB06_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB07_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB08_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB09_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB10_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB11_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB12_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB13_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB14_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB15_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_LAB16_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_OBSERVABILITY_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_H18_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_H19_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_H17_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_H21_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_H22_TOKEN=$(openssl rand -hex 32)
+GUIDED_VERIFIER_GATEWAY_TOKEN=$(openssl rand -hex 32)
+EOF
+chmod 600 llm-security-control-plane/.state/guided-course.env
+cut -d= -f1 llm-security-control-plane/.state/guided-course.env
+
+docker compose \
+  --env-file llm-security-control-plane/.state/guided-course.env \
+  --file examples/security-monitoring/compose.guided.yaml \
+  up -d --build
+```
+
+`cut`은 값 대신 변수 이름만 보여 주므로 Token을 터미널에 노출하지 않고 파일이 만들어졌는지 확인한다. 이 env file과 Compose 경로는 H01~H22에서 계속 재사용하는 공개 실행 계약이다. 뒤 차시 구현이 늘어나도 시작 명령은 바꾸지 않으며, 최종 설치 문서는 이 절차를 한곳에 모아 새 환경에서 다시 검증한다.
+
+| Front Proxy 주소 | 연결되는 내부 서비스 | 역할 |
+|---|---|---|
+| `http://127.0.0.1:28097` | Guided Control Center | 구현된 Hands-on 실행·단계·검증 영수증 |
+| `http://127.0.0.1:28192` | NeMo Chat UI | 공식 Dialog Rail 화면의 proxy 호환성 확인 |
+| `http://127.0.0.1:25500` | Promptfoo UI | H13에서 실행한 native evaluation 확인 |
+| `http://127.0.0.1:28098` | PyRIT UI | H15의 conversation 기록 확인 |
+| `http://127.0.0.1:23001` | Grafana | P17~P19 원시 신호 확인 |
+| `http://127.0.0.1:23002/d/guided-p20` | P20 전용 Grafana | P20의 현재 패널 확인 |
+
+P20은 전용 Prometheus·Alertmanager·Grafana와 별도 저장 공간을 사용한다. `guided-h20-grafana-reader`는 조회용 계정을 준비한 뒤 종료하므로 `docker compose ps --all`의 `Exited (0)`은 정상이다. P20 Grafana 로그인은 `p20-reader`와 환경 파일의 `GUIDED_P20_GRAFANA_PASSWORD`를 사용한다. 이 계정은 패널을 확인하지만 대시보드 설정을 저장할 수 없다. 관리자 비밀번호는 Grafana와 초기 계정 준비 서비스만 사용하고, 실행 앱과 verifier에는 전달하지 않는다. 이 구분은 제품 권한이며 Host 관리자에 의한 변경까지 막는 장치는 아니다.
+
+Control Center와 NeMo는 Front Proxy가 받고, Promptfoo·PyRIT·Grafana의 공식 UI는 각 제품이 요구하는 root 경로를 유지하도록 loopback 전용 Host port를 따로 연다. H01 수강생 Gateway와 제공 Bedrock Gateway만 `~/.aws`를 읽기 전용으로 확인한다. H05는 AWS 자격 증명 없이 로컬 NeMo intent·flow와 공식 Topical 평가를 실행한다. H06은 H05와 분리된 NeMo 서비스와 합성 Action Provider에서 호출 수와 실제 상태 변경을 확인한다. H07은 일반 위해, H08은 계정 복구 앱의 업무 규칙을 서로 다른 NeMo 서비스와 역할별 일회 capability로 검사한다. 두 검증 모두 suite를 닫은 뒤 위험 요청의 Main Model 미호출을 원장에서 확인한다. H09는 로컬 Presidio가 만든 비식별화 결과가 실제 Delivery Sink까지 전달됐는지 별도 원장으로 확인하며 AWS와 Main Model을 사용하지 않는다. H21·H22는 외부 부작용 대신 전용 로컬 Provider·MCP Server로 정책 경계를 검증한다. 별도 evidence verifier는 AWS 자격 증명·상태 변경 Token·Docker socket 없이 각 learner app의 영수증을 다시 대조한다.
+
+Starter는 요청된 512 Token을 그대로 Provider에 전달한다. `server.py`의 요청 처리 코드를 완성한 뒤에는 다음 두 명령으로 수강생 Gateway만 다시 연결한다.
+
+```bash
+docker compose \
+  --env-file llm-security-control-plane/.state/guided-course.env \
+  --file examples/security-monitoring/compose.guided.yaml \
+  build guided-h01-gateway
+docker compose \
+  --env-file llm-security-control-plane/.state/guided-course.env \
+  --file examples/security-monitoring/compose.guided.yaml \
+  up -d --no-deps --force-recreate guided-h01-gateway
+```
+
+Control Center의 `현재 구현 검증`은 Browser가 보내지 않는 정상 64 Token·큰 512 Token·빈 message·client model override 네 요청을 새로 실행한다. verifier는 정상 64 유지, 512→128 제한, 잘못된 요청의 HTTP 422·Provider 미호출을 H01 Gateway receipt와 source digest로 확인한다. H02부터는 별도 `guided-bedrock-gateway`를 사용하므로 H01 미완료 상태에서도 다음 과정을 시작할 수 있다.
+
+`standard`와 `high-assurance`는 NeMo 공식 profile이 아니라
+`policies/control-plane-policy.yaml`이 정의한 프로젝트 Rail 조합이다. `standard`는
+Presidio와 Nova 일반 위해 Rail을 사용하고 `high-assurance`는 애플리케이션 Self-check를
+추가한다. 공식 NeMo `models`, `rails`, `prompts`는 `nemo-policy-hub/config/*/config.yml`에
+분리되어 `RailsConfig.from_path()`로 읽힌다. 두 profile 모두 rail 오류를 만나면
+`infra`로 닫고 다른 profile로 자동 전환하지 않는다. GPU 없는 WSL에서 모델 호출은
+local Bedrock Gateway를 거쳐 순차 실행되며 AWS 자격 증명은 Gateway에만 mount한다.
+
+## API
+
+Application Gateway는 브라우저가 사용하는 `/`, `/healthz`, `/.well-known/login`,
+`/.well-known/jwks.json`, `/api/auth/refresh`, `/api/auth/logout`,
+`/api/security/policy`, `/api/chat`을 제공한다. NeMo Hub는 `/healthz`,
+`/api/guardrails/policy`, `/api/chat`과
+학습 전용 `/api/labs/output-candidate`를 제공한다. Presidio Spoke는 `/healthz`,
+`/api/policy`, `/api/analyze`만 제공한다.
+
+브라우저 사용자 JWT, Application-to-NeMo 토큰, NeMo-to-Presidio 토큰과
+Application/NeMo-to-Bedrock-Gateway 토큰은 서로 다르다.
+내부 토큰은 브라우저 JavaScript로 전달하지 않는다. 실서비스에서는 환경변수 Bearer
+token을 mTLS, service mesh identity 또는 cloud workload identity로 교체한다.
+
+```bash
+curl -sS -X POST http://127.0.0.1:18095/.well-known/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"public-reader","password":"public-reader-demo"}' \
+  | tee /tmp/application-login.json
+
+ACCESS_TOKEN=$(jq -r '.access_token' /tmp/application-login.json)
+curl -sS -X POST http://127.0.0.1:18095/api/chat \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"공개 보안 연락처를 알려 주세요.","classification":"public","purpose":"public_information"}'
+```
+
+Module 08은 `AUTH_EVENT_SINK=stdout`으로 인증 성공·실패 JSON을 컨테이너 로그에만
+기록하고 `docker logs llm-security-application-gateway`로 확인한다. Module 09는
+`AUTH_EVENT_SINK=stdout,monitor`와 Monitor 연결을 사용해 같은 이벤트를 화면에도
+표시한다. `LEGACY_STATIC_TOKEN_MODE=true`를 명시하면 이전 고정 토큰도 계속 사용할
+수 있지만 기본값은 `false`다.
+
+## 게시자 E2E
+
+다음 스크립트의 loop와 자동 판정은 게시자 검증용이다. 수강생 교재에는 같은 요청을
+한 번씩 직접 실행하고 원본 JSON을 읽는 명령만 제공한다.
+
+```bash
+BUILD_IMAGES=true bash llm-security-control-plane/tests/e2e-control-plane.sh
+```
+
+GitHub의 Module 08 workflow는 AWS 자격 증명이 필요 없는 결정적 Gateway와 Browser 계약을 검사한다.
+실제 Bedrock과 Browser 검증은 게시자 환경에서 `restore-module08-aws.sh --repair`, 실제
+control-plane E2E와 `tests/browser/run_control_plane_ui.py`를 순서대로 실행한다. Browser
+harness는 desktop·390px, theme, `bedrock_main` stage와 same-origin 경계를 확인한다.
+
+채팅 검사 모드는 `detection`(탐지만 수행)과 `prevent`(차단·비식별화 적용)를 사용한다.
+기존 환경 파일의 `audit`·`enforce`는 각각 새 이름으로 정규화하며 정책·응답에는 새 이름을 표시한다.
+평가 준비 스크립트는 `detection`으로 시작한다. 일반 통합 배포 기본값은 `prevent`를 유지한다.
