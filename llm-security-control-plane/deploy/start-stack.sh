@@ -148,7 +148,7 @@ if [ "$START_BEDROCK_GATEWAY" = true ]; then
     -e "BEDROCK_PRICING_REFERENCE_DATE=${BEDROCK_PRICING_REFERENCE_DATE:-2026-08-24}" \
     -e "RELEASE_VERSION=$IMAGE_VERSION" \
     "${OTEL_ARGS[@]}" \
-    "localhost/llm-security-bedrock-gateway:$IMAGE_VERSION" >/dev/null
+    "${BEDROCK_GATEWAY_IMAGE:-ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05}" >/dev/null
 fi
 
 docker rm -f llm-security-presidio-spoke >/dev/null 2>&1 || true

@@ -3,10 +3,7 @@
 name: runtime-security-operations
 services:
   gateway:
-    build:
-      context: ../../llm-security-control-plane
-      dockerfile: bedrock-gateway/Containerfile
-    image: localhost/runtime-gateway:20260919
+    image: ${BEDROCK_GATEWAY_IMAGE:-ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05}
     user: "${LOCAL_UID:?Set LOCAL_UID}:${LOCAL_GID:?Set LOCAL_GID}"
     env_file: .state/runtime.env
     environment:

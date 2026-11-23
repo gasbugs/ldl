@@ -28,6 +28,8 @@ def compose(relative):
 class BrowserPortContract(unittest.TestCase):
     def test_application_is_the_only_public_control_plane_service(self):
         services = compose("llm-security-control-plane/compose.yaml")
+        self.assertNotIn("build", services["bedrock-gateway"])
+        self.assertEqual(services["bedrock-gateway"]["image"], "ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05")
         for name, service in services.items():
             for port in service.get("ports", []):
                 if name == "application":

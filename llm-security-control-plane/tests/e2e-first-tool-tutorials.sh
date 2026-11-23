@@ -28,7 +28,7 @@ profile_access_key="$(docker run --rm \
   --env AWS_SHARED_CREDENTIALS_FILE=/tmp/.aws/credentials \
   --env AWS_CONFIG_FILE=/tmp/.aws/config \
   --entrypoint python \
-  localhost/llm-security-bedrock-gateway:1.0.0 \
+  ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05 \
   -c 'import boto3; print(boto3.Session().get_credentials().access_key)')"
 test "$profile_access_key" = fixture-access-key
 

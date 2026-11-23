@@ -3,10 +3,7 @@ name: llm-security-control-plane
 services:
   bedrock-gateway:
     container_name: llm-security-bedrock-gateway
-    build:
-      context: .
-      dockerfile: bedrock-gateway/Containerfile
-    image: localhost/llm-security-bedrock-gateway:${IMAGE_VERSION:-1.0.0}
+    image: ${BEDROCK_GATEWAY_IMAGE:-ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05}
     # Docker daemon에서도 host의 0700 ~/.aws를 root 없이 확인한다.
     user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     restart: always

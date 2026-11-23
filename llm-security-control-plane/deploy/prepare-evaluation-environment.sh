@@ -173,11 +173,12 @@ compose() {
   docker compose --project-name llm-security-control-plane \
     --env-file "$ENV_FILE" -f "$ROOT/compose.yaml" "$@"
 }
-stage 3 '네 서비스 이미지 빌드 (다운로드 때문에 시간이 걸릴 수 있음)'
+stage 3 'Gateway 다운로드와 실습 서비스 이미지 빌드'
 compose config --quiet
-compose build bedrock-gateway presidio nemo-hub application
+compose pull bedrock-gateway
+compose build presidio nemo-hub application
 
-log '네 서비스 이미지 빌드 완료.'
+log 'Gateway 다운로드와 나머지 서비스 이미지 빌드 완료.'
 stage 4 'Knowledge Base 탐색·생성·문서 수집'
 # Resolve AWS resources before removing the previous containers or local state.
 export AWS_PROFILE=default AWS_REGION=us-east-1

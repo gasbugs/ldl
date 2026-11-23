@@ -4,10 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE_VERSION="${IMAGE_VERSION:-1.0.0}"
 
-docker build \
-  -f "$ROOT/bedrock-gateway/Containerfile" \
-  -t "localhost/llm-security-bedrock-gateway:$IMAGE_VERSION" \
-  "$ROOT"
+docker pull "${BEDROCK_GATEWAY_IMAGE:-ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05}"
 
 docker build \
   -f "$ROOT/spokes/presidio-privacy/Containerfile" \

@@ -46,7 +46,7 @@ images:
   application_gateway: localhost/llm-security-application-gateway:1.0.0
   nemo_policy_hub: localhost/llm-security-nemo-policy-hub:1.0.0
   presidio_privacy_spoke: localhost/llm-security-presidio-privacy-spoke:1.0.0
-  bedrock_gateway: localhost/llm-security-bedrock-gateway:1.0.0
+  bedrock_gateway: ghcr.io/gasbugs/ldl-bedrock-gateway:v2026.11.23.19.05
   guided_front_proxy: localhost/llm-security-guided-front-proxy:0.1.0
   guided_control_center: localhost/llm-security-guided-control-center:0.1.0
   guided_h01_gateway: localhost/llm-security-guided-h01-gateway:0.1.0
