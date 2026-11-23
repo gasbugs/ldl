@@ -8,6 +8,7 @@ on:
       - llm-security-control-plane/bedrock-gateway/**
       - llm-security-control-plane/shared/telemetry.py
       - .github/workflows/publish-bedrock-gateway.yml
+      - llm-security-control-plane/tests/publication_gateway.py
 
 permissions:
   contents: read
@@ -59,12 +60,19 @@ jobs:
         run: |
           docker run -d --name gateway-publication-check \
             -e BEDROCK_GATEWAY_TOKEN=publication-check \
+            -e AWS_ACCESS_KEY_ID=publication-fixture \
+            -e AWS_SECRET_ACCESS_KEY=publication-fixture \
+            -e AWS_EC2_METADATA_DISABLED=true \
+            -e PYTHONPATH=/app \
+            -v "$PWD/llm-security-control-plane/tests/publication_gateway.py:/tmp/publication_gateway.py:ro" \
+            --entrypoint python \
             -p 127.0.0.1:18096:8080 \
-            "$IMAGE:${{ steps.version.outputs.value }}"
+            "$IMAGE:${{ steps.version.outputs.value }}" /tmp/publication_gateway.py
           trap 'docker rm -f gateway-publication-check' EXIT
           for attempt in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:18096/healthz > /tmp/gateway-health.json; then
               jq -e '.ok == true' /tmp/gateway-health.json
+              test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18096/v1/models)" = 401
               exit 0
             fi
             sleep 1
