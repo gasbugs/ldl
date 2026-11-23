@@ -46,6 +46,8 @@ jobs:
         with:
           context: llm-security-control-plane
           file: llm-security-control-plane/bedrock-gateway/Containerfile
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
           platforms: linux/amd64
           load: true
           tags: |
@@ -85,6 +87,8 @@ jobs:
         with:
           context: llm-security-control-plane
           file: llm-security-control-plane/bedrock-gateway/Containerfile
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
           platforms: linux/amd64
           push: true
           tags: |

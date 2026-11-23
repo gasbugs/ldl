@@ -1,5 +1,7 @@
 # 검증한 Python patch version을 읽기 쉬운 tag로 고정한다.
 FROM docker.io/library/python:3.12.14-slim
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 
 # 로그를 즉시 출력하고, 런타임에 주입되는 AWS 설정을 /tmp 아래에서 찾게 한다.
 # AWS 자격 증명은 이미지에 COPY하지 않으며 이 Gateway 컨테이너에만 마운트한다.
