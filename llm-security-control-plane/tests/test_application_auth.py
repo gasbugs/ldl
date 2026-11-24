@@ -31,8 +31,6 @@ class ApplicationAuthTests(unittest.TestCase):
             str(self.root / "state"),
             "https://issuer.example",
             "application-audience",
-            access_ttl=300,
-            refresh_ttl=1800,
         )
 
     def tearDown(self) -> None:
@@ -47,12 +45,13 @@ class ApplicationAuthTests(unittest.TestCase):
         self.assertEqual(claims["iss"], "https://issuer.example")
         self.assertEqual(claims["aud"], "application-audience")
 
-    def test_evaluation_ttl_is_encoded_in_new_token(self) -> None:
-        self.auth.access_ttl = 3600
+    def test_24_hour_login_ttl_is_encoded_in_both_tokens(self) -> None:
         pair = self.auth.issue_pair("reader")
-        claims = self.auth.verify_access(pair["access_token"])
-        self.assertEqual(pair["expires_in"], 3600)
-        self.assertEqual(claims["exp"] - claims["iat"], 3600)
+        access = self.auth.verify_access(pair["access_token"])
+        refresh = jwt.decode(pair["refresh_token"], options={"verify_signature": False})
+        self.assertEqual(pair["expires_in"], 86400)
+        self.assertEqual(access["exp"] - access["iat"], 86400)
+        self.assertEqual(refresh["exp"] - refresh["iat"], 86400)
 
     def test_wrong_password_is_rejected(self) -> None:
         with self.assertRaises(InvalidCredentials):

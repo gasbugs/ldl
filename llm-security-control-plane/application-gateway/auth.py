@@ -69,8 +69,8 @@ class AuthService:
         state_dir: str,
         issuer: str,
         audience: str,
-        access_ttl: int = 300,
-        refresh_ttl: int = 1800,
+        access_ttl: int = 86400,
+        refresh_ttl: int = 86400,
     ) -> None:
         if access_ttl <= 0:
             raise ValueError("access_ttl must be positive")
