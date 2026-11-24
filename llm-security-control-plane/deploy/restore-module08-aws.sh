@@ -12,12 +12,11 @@ esac
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AWS_REGION=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
-AWS_PROFILE=${AWS_PROFILE:-default}
-# 하위 aws 프로세스가 같은 ~/.aws 프로필과 리전을 선택하도록 전달한다.
-export AWS_REGION AWS_PROFILE
+# AWS_PROFILE이 지정된 WSL은 해당 프로필을 쓰고, EC2는 인스턴스 역할을 그대로 사용한다.
+export AWS_REGION
 if ! ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"; then
-  echo "AWS authentication failed for profile: $AWS_PROFILE" >&2
-  echo "Reauthenticate it with 'aws login --profile $AWS_PROFILE' or the login command used by that profile." >&2
+  echo "AWS authentication failed for the current CLI identity" >&2
+  echo "Check the selected AWS_PROFILE or the EC2 instance role." >&2
   exit 1
 fi
 PREFIX=owasp-llm-module08
@@ -131,6 +130,7 @@ if [ "$MODE" = --ensure ] && [ -n "$knowledge_base_id" ] && [ "$knowledge_base_i
         install -d -m 0700 "$STATE_DIR"
         (umask 077; printf 'MODULE08_KNOWLEDGE_BASE_ID=%s\nMODULE08_DATA_SOURCE_ID=%s\nAWS_REGION=%s\n' \
           "$knowledge_base_id" "$data_source_id" "$AWS_REGION" > "$STATE_FILE")
+        write_module08_compose_env "$STATE_DIR" "$COMPOSE_ENV_FILE" "$knowledge_base_id"
         printf 'module08-aws=READY knowledge_base_id=%s data_source_id=%s ingestion_status=%s region=%s\n' \
           "$knowledge_base_id" "$data_source_id" "$ingestion_status" "$AWS_REGION"
         exit 0

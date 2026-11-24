@@ -12,6 +12,21 @@ write_module08_compose_env() {
   install -d -m 0700 "$state_dir"
   umask 077
 
+  # Keep the learner's Gateway token, instance-role mode, browser origins, and other settings.
+  # A ready or repaired KB only changes the KB ID in an existing Compose environment.
+  if [ -f "$compose_env_file" ]; then
+    local updated_env
+    updated_env="$(mktemp "${state_dir}/module08-compose.XXXXXX")"
+    chmod 0600 "$updated_env"
+    awk -v id="$current_knowledge_base_id" '
+      /^MODULE08_KNOWLEDGE_BASE_ID=/ { print "MODULE08_KNOWLEDGE_BASE_ID=" id; found=1; next }
+      { print }
+      END { if (!found) print "MODULE08_KNOWLEDGE_BASE_ID=" id }
+    ' "$compose_env_file" > "$updated_env"
+    mv "$updated_env" "$compose_env_file"
+    return 0
+  fi
+
   read_existing_or_generate() {
     local key=$1
     local bytes=$2
