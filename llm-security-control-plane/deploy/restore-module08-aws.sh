@@ -235,6 +235,7 @@ if [ -z "$knowledge_base_id" ] || [ "$knowledge_base_id" = None ]; then
   sleep 10
   knowledge_base_id="$(aws bedrock-agent create-knowledge-base --region "$AWS_REGION" \
     --name "$KB_NAME" --role-arn "arn:aws:iam::${ACCOUNT_ID}:role/${KB_ROLE}" \
+    --tags Project=llm-defense-lab,Module=08 \
     --knowledge-base-configuration \
     "{\"type\":\"VECTOR\",\"vectorKnowledgeBaseConfiguration\":{\"embeddingModelArn\":\"arn:aws:bedrock:${AWS_REGION}::foundation-model/amazon.titan-embed-text-v2:0\",\"embeddingModelConfiguration\":{\"bedrockEmbeddingModelConfiguration\":{\"dimensions\":1024,\"embeddingDataType\":\"FLOAT32\"}}}}" \
     --storage-configuration \
