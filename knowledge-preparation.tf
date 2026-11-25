@@ -85,8 +85,11 @@ resource "aws_iam_role_policy" "course_preparation" {
         Resource = [for contract in local.knowledge_contracts : "arn:aws:s3:::${contract.source_bucket}/${contract.source_prefix}*"]
       },
       {
-        Effect   = "Allow"
-        Action   = ["s3vectors:CreateVectorBucket", "s3vectors:DeleteVectorBucket", "s3vectors:GetVectorBucket"]
+        Effect = "Allow"
+        Action = [
+          "s3vectors:CreateVectorBucket", "s3vectors:DeleteVectorBucket",
+          "s3vectors:GetVectorBucket", "s3vectors:ListIndexes"
+        ]
         Resource = [for contract in local.knowledge_contracts : contract.vector_bucket_arn]
       },
       {
