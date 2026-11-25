@@ -35,24 +35,6 @@ rail_implementations:
     config_directory: application-self-check
     telemetry_task: self_check
 
-# 전체 시스템의 vocabulary/관측 모델이다. 이 목록이 실행 순서를 자동 생성하지는 않는다.
-# 실제 순서는 Application Gateway와 NeMo Hub 코드가 만들고 응답 stage evidence로 검증한다.
-pipeline:
-  stages:
-    - application_authentication
-    - application_authorization
-    - knowledge_base_retrieval
-    - application_rag_selection
-    - presidio_input
-    - nova_general_safety_input
-    - application_self_check_input
-    - presidio_retrieval
-    - bedrock_main
-    - nova_general_safety_output
-    - application_self_check_output
-    - presidio_output
-    - application_final_enforcement
-
 prohibited_entities:
   - DEMO_API_KEY
   - US_SSN

@@ -305,7 +305,6 @@ async def policy() -> dict:
         "runtime_source": "llm-security-control-plane/nemo-policy-hub/hub_core.py",
         "assurance_profiles": CONTROL_PLANE_POLICY["assurance_profiles"],
         "execution": CONTROL_PLANE_POLICY["execution"],
-        "pipeline": CONTROL_PLANE_POLICY["pipeline"],
         "models": {"main": {"id": MAIN_MODEL, "provider": MODEL_PROVIDER}},
         "runtime_model_lock": RUNTIME["model_lock"],
         "lab_endpoints": ENABLE_LAB_ENDPOINTS,
