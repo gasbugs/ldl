@@ -43,6 +43,7 @@ class ControlCenterBootstrapTest(unittest.TestCase):
         self.assertIn("block-lab-code-highlight", styles)
         self.assertNotIn("내가 조립한 코드 시작", script)
         self.assertNotIn("내가 조립한 코드 끝", script)
+        self.assertRegex(script, r'P03:\s*\{\s*title: "동기화 확인·검색 조립",\s*freeSlots: true,')
 
 
 if __name__ == "__main__":

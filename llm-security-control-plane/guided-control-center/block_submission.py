@@ -394,9 +394,9 @@ def template(problem):
     return front + '__COMMON__\n\n    if operation == "apply_guardrail":\n__IF__\n    else:\n__ELSE__\n\n    # 제공 흐름: 응답을 가공하거나 서비스 오류를 감추지 않습니다.\n    return response\n'
 
 def assemble(problem, order):
-    if problem in ("P01", "P04", "P05", "P07", "P09", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"):
+    if problem in ("P01", "P03", "P04", "P05", "P07", "P09", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"):
         selected = [item.partition(":") for item in order]
-        allowed = {"P01": {"cap", "reserve", "call", "settle"}, "P04": {"common", "if", "else"}, "P05": {"bot", "flow"}, "P07": {"model", "flow"}, "P09": {"imports", "entities", "registry", "release"}, "P11": {"setup", "filter"}, "P12": {"auth", "authorize", "input", "retrieval", "main", "output"}, "P13": {"case", "payload", "assertion", "condition"}, "P14": {"probe_cap", "generations", "parallel"}, "P15": {"limit", "marker", "sequence", "errors"}, "P17": {"root", "child", "values", "attributes", "log", "metric"}, "P18": {"logql", "promql", "trace"}, "P19": {"input", "stage", "decision", "completion", "result"}, "P20": {"alert_expr", "alert_for", "dashboard"}, "P21": {"checks", "limits"}, "P22": {"review", "nonce"}}[problem]
+        allowed = {"P01": {"cap", "reserve", "call", "settle"}, "P03": {"pre", "post"}, "P04": {"common", "if", "else"}, "P05": {"bot", "flow"}, "P07": {"model", "flow"}, "P09": {"imports", "entities", "registry", "release"}, "P11": {"setup", "filter"}, "P12": {"auth", "authorize", "input", "retrieval", "main", "output"}, "P13": {"case", "payload", "assertion", "condition"}, "P14": {"probe_cap", "generations", "parallel"}, "P15": {"limit", "marker", "sequence", "errors"}, "P17": {"root", "child", "values", "attributes", "log", "metric"}, "P18": {"logql", "promql", "trace"}, "P19": {"input", "stage", "decision", "completion", "result"}, "P20": {"alert_expr", "alert_for", "dashboard"}, "P21": {"checks", "limits"}, "P22": {"review", "nonce"}}[problem]
         if any(slot not in allowed or not sep for slot, sep, block in selected):
             raise ValueError("invalid block destination")
         order = [block for slot, _, block in selected]

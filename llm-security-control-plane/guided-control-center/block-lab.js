@@ -126,6 +126,7 @@ text = text[:128]`},
   },
   P03: {
     title: "동기화 확인·검색 조립",
+    freeSlots: true,
     file: "~/owasp-llm-practice/P01-03_learner.py",
     slots: [{id: "pre", label: "search_current(...) · 현재 작업 상태 확인"}, {id: "post", label: "COMPLETE 확인 뒤 · 검색"}],
     description: "동기화 상태 조회와 검색 코드를 조립하세요. 함수의 해당 위치에 적용한 뒤 실제 테스트에서 순서를 확인하세요.",
