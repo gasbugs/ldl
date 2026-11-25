@@ -9,7 +9,19 @@
 terraform.rc
 crash.log
 crash.*.log
+__pycache__/
+*.py[cod]
 .env
 .env.*
 *.pem
 *.key
+
+# Local deployment state and account-specific verification output.
+/.state/
+
+# Generated Bedrock lab identifiers and rendered policies.
+/bedrock-api-lab/OwaspLabGuardrail.json
+/bedrock-api-lab/data-source-id.txt
+/bedrock-api-lab/ingestion-job-id.txt
+/bedrock-api-lab/kb-read-policy.json
+/bedrock-api-lab/knowledge-base-id.txt
