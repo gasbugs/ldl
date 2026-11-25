@@ -146,7 +146,7 @@ def main():
             data = starters[name.name]
             temporary = name.with_name(name.name + ".reset-new")
             temporary.write_bytes(data)
-            temporary.chmod(0o664 if name.name in {"P01-02_learner.py", "P01-03_learner.py", "P02-01_learner.py", "P03-01_learner.py", "P04-01_flows.co", "P04-02_actions.py", "P04-03_config.yml", "P04-04_prompts.yml", "P04-05_policy.py", "P04-06_prompts.yml", "P04-07_policy.py", "P04-08_pipeline.py", "P05-01_promptfooconfig.yaml", "P05-02_garak-config.yaml", "P05-03_attack.py", "P05-04_policy.py", "P06-01_instrumentation.py", "P06-02_queries.yaml", "P06-03_investigation.py", "P06-04_rules.yaml", "P06-04_dashboard.json", "P07-01_policy.py", "P07-02_server.py"} else 0o644)
+            temporary.chmod(0o664 if name.name in {"P01-02_learner.py", "P01-03_learner.py", "P02-01_learner.py", "P03-01_learner.py", "P04-01_flows.co", "P04-02_actions.py", "P04-03_config.yml", "P04-04_prompts.yml", "P04-05_policy.py", "P04-06_prompts.yml", "P04-07_policy.py", "P04-08_pipeline.py", "P05-01_promptfooconfig.yaml", "P05-02_garak-config.yaml", "P05-03_attack.py", "P06-01_instrumentation.py", "P06-02_queries.yaml", "P06-03_investigation.py", "P06-04_rules.yaml", "P06-04_dashboard.json", "P07-01_policy.py", "P07-02_server.py"} else 0o644)
             os.replace(temporary, name)
         report_progress(55, "풀이 코드를 Starter로 되돌렸습니다.")
         clear = ("import sqlite3,uuid; db=sqlite3.connect('/state/progress.sqlite3'); "

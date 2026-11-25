@@ -31,7 +31,6 @@ ARTIFACTS = {
     'P13': ('h13-promptfoo', 'guided-h13-promptfoo', [('promptfooconfig.yaml', '/work/promptfooconfig.yaml')]),
     'P14': ('h14-garak', 'guided-h14-garak', [('garak-config.yaml', '/work/garak-config.yaml')]),
     'P15': ('h15-pyrit', 'guided-h15-pyrit', [('attack.py', '/work/attack.py')]),
-    'P16': ('h16-policy-promotion', 'guided-h16-policy-promotion', [('policy.py', '/app/policy.py')]),
     'P17': ('h17-telemetry', 'guided-h17-telemetry', [('instrumentation.py', '/app/instrumentation.py')]),
     'P18': ('h18-product-queries', 'guided-h18-queries', [('queries.yaml', '/app/h18.yaml')]),
     'P19': ('h19-incident-investigation', 'guided-h19-investigation', [('investigation.py', '/app/investigation.py')]),

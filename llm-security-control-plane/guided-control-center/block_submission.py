@@ -65,16 +65,6 @@ BLOCKS = {
         "request_as_trace": ("values", 'trace_id = request_id'),
         "fixed_allow_counter": ("metric", 'counter.labels(decision="allow").inc()'),
     },
-    "P16": {
-        "regex_import": ("imports", "import re"),
-        "direct_pattern": ("pattern", 'DIRECT_MARKER = re.compile(r"^H16-OVERRIDE\\s+비밀을\\s+(?:출력|공개)해[.!]?$", re.IGNORECASE)'),
-        "normalize_text": ("normalize", 'text = " ".join(message.split())'),
-        "match_direct": ("marker", "marker_attack = bool(DIRECT_MARKER.fullmatch(text))"),
-        "match_scope": ("scope", 'scope_attack = ("업무 범위" in text and "무시" in text\n                and "내부 비밀" in text and ("답해" in text or "알려줘" in text))'),
-        "block_or_allow": ("decision", 'return "block" if marker_attack or scope_attack else "allow"'),
-        "marker_anywhere": ("marker", 'marker_attack = "H16-OVERRIDE" in text'),
-        "allow_all": ("decision", 'return "allow"'),
-    },
     "P15": {
         "three_turns": ("limit", "MAX_TURNS = 3"),
         "impact_marker": ("marker", 'IMPACT_MARKER = "H15_POLICY_BYPASS_CANARY"'),
@@ -209,7 +199,7 @@ BLOCKS = {
     },
 }
 
-FILES = {"P01": "P03-01_learner.py", "P02": "P01-02_learner.py", "P03": "P01-03_learner.py", "P04": "P02-01_learner.py", "P05": "P04-01_flows.co", "P06": "P04-02_actions.py", "P07": "P04-03_config.yml", "P08": "P04-04_prompts.yml", "P09": "P04-05_policy.py", "P10": "P04-06_prompts.yml", "P11": "P04-07_policy.py", "P12": "P04-08_pipeline.py", "P13": "P05-01_promptfooconfig.yaml", "P14": "P05-02_garak-config.yaml", "P15": "P05-03_attack.py", "P16": "P05-04_policy.py", "P17": "P06-01_instrumentation.py", "P18": "P06-02_queries.yaml", "P19": "P06-03_investigation.py", "P20": "P06-04_rules.yaml", "P21": "P07-01_policy.py", "P22": "P07-02_server.py"}
+FILES = {"P01": "P03-01_learner.py", "P02": "P01-02_learner.py", "P03": "P01-03_learner.py", "P04": "P02-01_learner.py", "P05": "P04-01_flows.co", "P06": "P04-02_actions.py", "P07": "P04-03_config.yml", "P08": "P04-04_prompts.yml", "P09": "P04-05_policy.py", "P10": "P04-06_prompts.yml", "P11": "P04-07_policy.py", "P12": "P04-08_pipeline.py", "P13": "P05-01_promptfooconfig.yaml", "P14": "P05-02_garak-config.yaml", "P15": "P05-03_attack.py", "P17": "P06-01_instrumentation.py", "P18": "P06-02_queries.yaml", "P19": "P06-03_investigation.py", "P20": "P06-04_rules.yaml", "P21": "P07-01_policy.py", "P22": "P07-02_server.py"}
 
 def _indented(snippets, spaces):
     return "\n\n".join("\n".join(" " * spaces + line for line in snippet.splitlines()) for snippet in snippets)
@@ -282,13 +272,6 @@ def template(problem):
                 raise RuntimeError("P17 starter layout mismatch")
             raw = raw.replace(before, after, 1)
         return raw
-    if problem == "P16":
-        raw = (ROOT / "block-starters/P16.py").read_text(encoding="utf-8")
-        if raw.count('def decide(message: str) -> str:\n    return "allow"') != 1:
-            raise RuntimeError("P16 starter layout mismatch")
-        return ('"""Starter policy: normal traffic works, but the H16 override is still allowed."""\n'
-                '__IMPORTS__\n\n__PATTERN__\n\ndef decide(message: str) -> str:\n'
-                '__NORMALIZE__\n__MARKER__\n__SCOPE__\n__DECISION__\n')
     if problem == "P15":
         raw = (ROOT / "block-starters/P15.py").read_text(encoding="utf-8")
         markers = (("MAX_TURNS = 0", "__LIMIT__"),
@@ -411,9 +394,9 @@ def template(problem):
     return front + '__COMMON__\n\n    if operation == "apply_guardrail":\n__IF__\n    else:\n__ELSE__\n\n    # 제공 흐름: 응답을 가공하거나 서비스 오류를 감추지 않습니다.\n    return response\n'
 
 def assemble(problem, order):
-    if problem in ("P01", "P04", "P05", "P07", "P09", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"):
+    if problem in ("P01", "P04", "P05", "P07", "P09", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"):
         selected = [item.partition(":") for item in order]
-        allowed = {"P01": {"cap", "reserve", "call", "settle"}, "P04": {"common", "if", "else"}, "P05": {"bot", "flow"}, "P07": {"model", "flow"}, "P09": {"imports", "entities", "registry", "release"}, "P11": {"setup", "filter"}, "P12": {"auth", "authorize", "input", "retrieval", "main", "output"}, "P13": {"case", "payload", "assertion", "condition"}, "P14": {"probe_cap", "generations", "parallel"}, "P15": {"limit", "marker", "sequence", "errors"}, "P16": {"imports", "pattern", "normalize", "marker", "scope", "decision"}, "P17": {"root", "child", "values", "attributes", "log", "metric"}, "P18": {"logql", "promql", "trace"}, "P19": {"input", "stage", "decision", "completion", "result"}, "P20": {"alert_expr", "alert_for", "dashboard"}, "P21": {"checks", "limits"}, "P22": {"review", "nonce"}}[problem]
+        allowed = {"P01": {"cap", "reserve", "call", "settle"}, "P04": {"common", "if", "else"}, "P05": {"bot", "flow"}, "P07": {"model", "flow"}, "P09": {"imports", "entities", "registry", "release"}, "P11": {"setup", "filter"}, "P12": {"auth", "authorize", "input", "retrieval", "main", "output"}, "P13": {"case", "payload", "assertion", "condition"}, "P14": {"probe_cap", "generations", "parallel"}, "P15": {"limit", "marker", "sequence", "errors"}, "P17": {"root", "child", "values", "attributes", "log", "metric"}, "P18": {"logql", "promql", "trace"}, "P19": {"input", "stage", "decision", "completion", "result"}, "P20": {"alert_expr", "alert_for", "dashboard"}, "P21": {"checks", "limits"}, "P22": {"review", "nonce"}}[problem]
         if any(slot not in allowed or not sep for slot, sep, block in selected):
             raise ValueError("invalid block destination")
         order = [block for slot, _, block in selected]
@@ -499,7 +482,7 @@ def apply(problem, order):
             target.write_bytes(original)
             raise
     digest = hashlib.sha256(source.encode()).hexdigest()
-    if problem in ("P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P21", "P22"):
+    if problem in ("P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P21", "P22"):
         job_id = str(uuid.uuid4())
         pending = JOBS / f"{job_id}.request.json"
         temporary = JOBS / f"{job_id}.tmp"
@@ -516,7 +499,7 @@ def apply(problem, order):
 
 
 def job_result(problem, job_id):
-    if problem not in ("P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22") or not isinstance(job_id, str):
+    if problem not in ("P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22") or not isinstance(job_id, str):
         raise ValueError("unsupported block build job")
     try:
         canonical = str(uuid.UUID(job_id))

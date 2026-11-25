@@ -30,12 +30,6 @@ for provided in server.py config/config.yml; do
     "$BUILD_ROOT/guided-labs/h10-self-check-output/$provided"
 done
 
-# P05-04의 현재 제공 서버는 여섯 회귀 사례를 실행합니다.
-# 학습자 정책만 교체하더라도 이 서버 계약이 이전 Git image로 되돌아가지 않게 합니다.
-install -D -m 0644 \
-  "$CONTROL_ROOT/guided-labs/h16-policy-promotion/server.py" \
-  "$BUILD_ROOT/guided-labs/h16-policy-promotion/server.py"
-
 # P06-03의 손상 사본 검사기는 현재 제공 실행기와 검증기에 같은 원문을 사용합니다.
 install -D -m 0644 \
   "$CONTROL_ROOT/guided-labs/h19-incident-investigation/analysis_inputs.py" \

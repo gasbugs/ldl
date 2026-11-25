@@ -24,7 +24,6 @@ TARGETS = {
     "P13": ("P05-01", "P05-01_promptfooconfig.yaml", "llm-security-guided-h13-promptfoo", "/work/promptfooconfig.yaml"),
     "P14": ("P05-02", "P05-02_garak-config.yaml", "llm-security-guided-h14-garak", "/work/garak-config.yaml"),
     "P15": ("P05-03", "P05-03_attack.py", "llm-security-guided-h15-pyrit", "/work/attack.py"),
-    "P16": ("P05-04", "P05-04_policy.py", "llm-security-guided-h16-policy-promotion", "/app/policy.py"),
     "P17": ("P06-01", "P06-01_instrumentation.py", "llm-security-guided-h17-telemetry", "/app/instrumentation.py"),
     "P18": ("P06-02", "P06-02_queries.yaml", "llm-security-guided-h18-queries", "/app/h18.yaml"),
     "P19": ("P06-03", "P06-03_investigation.py", "llm-security-guided-h19-investigation", "/app/investigation.py"),

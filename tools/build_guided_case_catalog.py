@@ -28,7 +28,6 @@ put(12,'인증·인가·개인정보·입력·검색·출력 단계의 정상 �
 put(13,'Promptfoo가 정상·위험 요청을 실제 Application에 보내고 응답의 허용·차단 및 Main 호출을 assertion으로 검사합니다.')
 put(14,'Garak 실행 상한을 확인한 뒤 Probe가 생성한 공격 후보와 실제 응답·Detector 결과를 JSONL 원문에서 검사합니다.',{'execution-limits':{'summary':'Probe·후보 수·생성 횟수·Token 상한·timeout 설정을 확인합니다.'},'native-tool-report':{'summary':'Garak의 실제 공격 프롬프트·응답·Detector 결과를 비교합니다.'}})
 put(15,'PyRIT 실행 상한을 확인한 뒤 대화 턴별 공격 입력과 응답·score·재현 결과를 검사합니다.',{'execution-limits':{'summary':'대화 턴·요청 횟수·Token 상한·timeout 설정을 확인합니다.'},'native-tool-report':{'summary':'PyRIT이 보낸 턴별 공격 입력과 실제 응답·score를 확인합니다.'}})
-put(16,'정상 업무·공격 문자열의 정상 인용·직접 공격·표현 변형을 비교한 뒤 동일 정책의 승격·되돌리기 원장을 검사합니다.',{'promotion-ledger':{'summary':'정책 승격 → 되돌리기 → 같은 정책 재승격의 실제 원장과 지문을 확인합니다.'}})
 put(17,'공지 조회·권한 없는 게시·익명 조회를 실행하고 Log·Trace·Metric을 현재 요청 및 실제 호출 원장과 대조합니다.',rows([{'case_id':n,'principal':p,'action':a} for n,p,a in [('normal-lookup','reader','notice_lookup'),('unauthorized-publish','reader','notice_publish'),('anonymous-lookup','anonymous','notice_lookup')]]))
 put(18,'정상·거부 요청의 request_id로 Loki·Tempo·Prometheus를 조회합니다. 실제 조회 쿼리와 제품 반환값을 비교합니다.',{'normal-query':{'summary':'정상 공지 조회 요청의 Log·Trace·Metric을 검색합니다.'},'denied-query':{'summary':'권한이 없어 거부된 공지 게시 요청의 Log·Trace·Metric을 검색합니다.'}})
 put(19,'세 업무 요청의 사건 묶음과 순서를 뒤집거나 일부 기록을 손상시킨 사본을 분석 함수에 전달합니다.',{**{f'{i}-{order}':{'summary':f'{["정상 공지 조회","권한 없는 공지 게시","익명 공지 조회"][i]} 사건 묶음'+('의 기록 순서를 뒤집어 전달합니다.' if order=='reversed' else '을 전달합니다.')} for i in range(3) for order in ('collected','reversed')},**{k:{'summary':v} for k,v in {'missing-log':'결정 로그를 뺀 사건 묶음을 전달합니다.','foreign-trace':'다른 Trace ID를 섞은 사건 묶음을 전달합니다.','open-ledger':'처리 완료 표시를 제거한 원장을 전달합니다.','duplicate-span':'동일 Span을 중복한 사건 묶음을 전달합니다.','missing-stop-stage':'필수 중단 단계 필드를 뺀 결정 Log를 전달합니다.','wrong-logs-type':'Log 목록을 배열이 아닌 값으로 바꾼 사건 묶음을 전달합니다.'}.items()}})
@@ -121,8 +120,6 @@ for problem, mission in out.items():
     summary={'apply_guardrail-normal':'정상 문장을 ApplyGuardrail 단독 검사로 보냅니다. 정상 입력 허용을 확인합니다.','apply_guardrail-email':'이메일 문장을 ApplyGuardrail에 보냅니다. 이메일 비식별화 결과를 확인합니다.','converse-normal':'정상 문장을 정책이 연결된 Converse로 보냅니다. 모델 응답이 유지되는지 확인합니다.','converse-email':'이메일 문장을 Converse로 보냅니다. 실제 모델 응답에 이메일 보호 정책이 적용되는지 확인합니다.','text-min':'입력 길이 하한을 제출합니다. 가장 짧은 정상 문장의 허용을 확인합니다.','text-max':'입력 길이 상한을 제출합니다. 최대 정상 문장의 허용을 확인합니다.','preserve-whitespace':'앞뒤 공백이 있는 문장을 제출합니다. 전달할 문장을 임의로 바꾸지 않는지 확인합니다.','extra-policy':'클라이언트가 정책 선택값을 추가합니다. 서버 소유 정책을 덮어쓸 수 없는지 확인합니다.','unknown-operation':'알 수 없는 작업 종류를 보냅니다. Provider 호출 전에 거부하는지 확인합니다.','apply_guardrail-error':'ApplyGuardrail에서 오류를 발생시킵니다. 서비스 오류를 그대로 전달하는지 확인합니다.','converse-error':'Converse에서 오류를 발생시킵니다. 서비스 오류를 그대로 전달하는지 확인합니다.'}.get(case_id)
   assert summary, (problem,case_id)
   definition['summary']=summary
-for case_id in ('normal-business','normal-explanation','risk-marker','risk-paraphrase','normal-quoted','risk-marker-variant'):
- out['P16']['cases'][case_id]={'summary':case_explanations[case_id]}
 for n in (7,8):
  for case_id, definition in out[f'P{n:02}']['cases'].items():
   definition['expected_values']={('guard_calls' if n==7 else 'self_check_calls'):1,'main_calls':0 if case_id.startswith('risk-') else 1}
@@ -135,7 +132,7 @@ out['P00']['cases']={name:{'summary':summary} for name,summary in {
  '질문 문장':'제출한 message가 요청한 질문 문장인지 확인합니다. 저장한 파일의 실제 값을 비교합니다.',
  '출력 상한의 자료형과 값':'max_tokens가 정수 64인지 확인합니다. 숫자 모양의 문자열과 불리언은 다른 자료형입니다.',
 }.items()}
-assert len(out)==24
+assert set(out)=={f'P{number:02}' for number in range(24) if number != 16}
 import sys
 serialized=json.dumps(out,ensure_ascii=False,indent=2)+'\n'
 path=cp/'guided-control-center/case-catalog.json'

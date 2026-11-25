@@ -22,7 +22,6 @@ execution_ids:
   P13: H13
   P14: H14
   P15: H15
-  P16: H16
   P17: H17
   P18: H18
   P19: H19
@@ -40,7 +39,6 @@ tabs:
   - {id: 07-rag-boundary, hands_on: [H11, H12], hands_on_status: implemented, implemented_hands_on: [H11, H12]}
   - {id: 08-promptfoo, hands_on: [H13], hands_on_status: implemented, implemented_hands_on: [H13]}
   - {id: 09-garak-pyrit, hands_on: [H14, H15], hands_on_status: implemented, implemented_hands_on: [H14, H15]}
-  - {id: 10-policy-promotion, hands_on: [H16], hands_on_status: implemented, implemented_hands_on: [H16]}
   - {id: 11-raw-observability, hands_on: [H17, H18], hands_on_status: implemented, implemented_hands_on: [H17, H18]}
   - {id: 12-incident-alert, hands_on: [H19, H20], hands_on_status: implemented, implemented_hands_on: [H19, H20]}
   - {id: 13-gateway-agent, hands_on: [H21, H22], hands_on_status: implemented, implemented_hands_on: [H21, H22]}
@@ -48,7 +46,6 @@ tabs:
 hands_on_H13: {executor: guided-h13-promptfoo, verifier: guided-evidence-verifier, native_artifact: promptfoo-json}
 hands_on_H14: {executor: guided-h14-garak, verifier: guided-evidence-verifier, native_artifact: garak-report-jsonl}
 hands_on_H15: {executor: guided-h15-pyrit, verifier: guided-evidence-verifier, native_artifact: pyrit-conversation}
-hands_on_H16: {public_id: P16, contract_version: 3, executor: guided-h16-policy-promotion, verifier: guided-evidence-verifier, regression_cases: [normal-business, normal-explanation, risk-marker, risk-paraphrase], evidence: [sandbox-digest, active-digest, promotion-ledger]}
 hands_on_H17: {executor: guided-h17-telemetry, verifier: guided-evidence-verifier, stores: [loki, tempo, prometheus], learner_function: observe_request, public_id: P17, contract_version: 2}
 hands_on_H18: {executor: guided-h18-queries, verifier: guided-evidence-verifier, queries: [logql, trace-id, promql]}
 hands_on_H19:

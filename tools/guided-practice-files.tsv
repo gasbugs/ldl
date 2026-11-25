@@ -15,7 +15,6 @@ P04-08|guided-labs/h12-application-pipeline/pipeline.py|P04-08_pipeline.py|guide
 P05-01|guided-labs/h13-promptfoo/promptfooconfig.yaml|P05-01_promptfooconfig.yaml|guided-h13-promptfoo
 P05-02|guided-labs/h14-garak/garak-config.yaml|P05-02_garak-config.yaml|guided-h14-garak
 P05-03|guided-labs/h15-pyrit/attack.py|P05-03_attack.py|guided-h15-pyrit
-P05-04|guided-labs/h16-policy-promotion/policy.py|P05-04_policy.py|guided-h16-policy-promotion
 P06-01|guided-labs/h17-telemetry/instrumentation.py|P06-01_instrumentation.py|guided-h17-telemetry
 P06-02|guided-labs/h18-product-queries/queries.yaml|P06-02_queries.yaml|guided-h18-queries
 P06-03|guided-labs/h19-incident-investigation/investigation.py|P06-03_investigation.py|guided-h19-investigation

@@ -120,7 +120,6 @@ LAB12_URL = os.getenv("GUIDED_LAB12_URL", "http://guided-h12-application-pipelin
 LAB13_URL = os.getenv("GUIDED_LAB13_URL", "http://guided-h13-promptfoo:8000")
 LAB14_URL = os.getenv("GUIDED_LAB14_URL", "http://guided-h14-garak:8000")
 LAB15_URL = os.getenv("GUIDED_LAB15_URL", "http://guided-h15-pyrit:8000")
-LAB16_URL = os.getenv("GUIDED_LAB16_URL", "http://guided-h16-policy-promotion:8000")
 OBSERVABILITY_URL = os.getenv("GUIDED_OBSERVABILITY_URL", "http://guided-observability:8000")
 LOKI_URL = os.getenv("GUIDED_LOKI_URL", "http://loki:3100")
 TEMPO_URL = os.getenv("GUIDED_TEMPO_URL", "http://tempo:3200")
@@ -173,7 +172,6 @@ LAB12_TOKEN = os.environ["GUIDED_VERIFIER_LAB12_TOKEN"]
 LAB13_TOKEN = os.environ["GUIDED_VERIFIER_LAB13_TOKEN"]
 LAB14_TOKEN = os.environ["GUIDED_VERIFIER_LAB14_TOKEN"]
 LAB15_TOKEN = os.environ["GUIDED_VERIFIER_LAB15_TOKEN"]
-LAB16_TOKEN = os.environ["GUIDED_VERIFIER_LAB16_TOKEN"]
 OBSERVABILITY_TOKEN = os.environ["GUIDED_VERIFIER_OBSERVABILITY_TOKEN"]
 H09_SINK_TOKEN = os.environ["GUIDED_H09_SINK_VERIFIER_TOKEN"]
 H06_PROVIDER_TOKEN = os.environ["GUIDED_H06_PROVIDER_VERIFIER_TOKEN"]
@@ -4362,88 +4360,6 @@ def verify_h15(request: H13VerifyRequest, _authorized: None = Depends(require_co
     turns=data.get("turns",[]); reproduction=data.get("reproduction",{})
     if not (1 <= len(turns) <= 3 and data.get('native_memory_messages') == len(turns) * 2 and reproduction.get("decision") == "block" and reproduction.get("upstream_called") is False): return tool_err("H15",request,"PyRIT native memory와 새 재현 요청에서 실제 차단·upstream 부재를 확인하지 못했습니다.",result)
     return {**tool_err("H15",request,"",result),"course_verdict":"PASS","stage_calls":[{"stage":"pyrit_conversation","attempted":True,"outcome":f"turns={len(turns)}","evidence_id":data['conversation_id']},{"stage":"impact_reproduction","attempted":True,"outcome":"blocked-before-upstream","evidence_id":reproduction['request_id']}],"evidence":[{"source":"pyrit","kind":"conversation","id":data['conversation_id']}],"reason":"PyRIT 1.0.1의 bounded conversation 후보를 새 Application 요청으로 재현해 명시적 정책 차단과 upstream 0건을 확인했습니다."}
-
-
-class H16CaseRequest(H13VerifyRequest):
-    case_id: str
-
-H16_IDS=['normal-business','normal-explanation','risk-marker','risk-paraphrase','normal-quoted','risk-marker-variant']
-H16_EXPECTED=['allow','allow','block','block','allow','block']
-
-def check_h16_sequence(request,final=False):
-    result={}
-    try:
-        response=httpx.get(f"{LAB16_URL}/v1/sequence/{request.suite_id}",headers={"Authorization":f"Bearer {LAB16_TOKEN}"},timeout=10)
-        if response.status_code!=200:raise ValueError('current policy execution missing')
-        raw=response.json();record=raw['receipt'];cases=record['cases'];events=raw['events']
-        result.update(sandbox_digest=record['sandbox_digest'],cases=[],events=events)
-        start=datetime.fromisoformat(request.started_at)
-        if (start.tzinfo is None or not 0<=(datetime.now(timezone.utc)-start).total_seconds()<=900
-                or record['suite_id']!=request.suite_id or record['started_at']!=request.started_at
-                or record['sandbox_digest']!=raw['current_source']):raise ValueError('source or execution identity changed')
-        count=len(H16_IDS) if final else H16_IDS.index(request.case_id)+1
-        if len(cases)!=count or [x.get('case_id') for x in cases]!=H16_IDS[:count]:raise ValueError('case prefix incomplete')
-        for index,row in enumerate(cases):
-            decision=row.get('decision');expected=H16_EXPECTED[index]
-            verdict='PASS' if decision==expected else ('HIT' if expected=='block' and decision=='allow' else 'ERR')
-            result['cases'].append({**row,'status':verdict,'case_verified':verdict=='PASS'})
-            if verdict!='PASS':
-                return {**tool_err('H16',request,'현재 정책의 허용·차단 결과가 미션 조건과 다릅니다.',result),
-                    'course_verdict':verdict,'task_completed':False,'case_verified':False}
-        if not final:
-            if events or record['state']!='paused' or raw['head']!=record['initial_head']:raise ValueError('policy promoted before verification or active head changed')
-        else:
-            previous=record['initial_head']['digest'];seq=record['initial_head']['seq']
-            if record['state']!='finished' or len(events)!=3 or events!=record['events']:raise ValueError('promotion ledger incomplete')
-            for index,(event,target) in enumerate([('promote',record['sandbox_digest']),('rollback',previous),('promote',record['sandbox_digest'])]):
-                row=events[index]
-                if (row['seq']!=seq+index+1 or row['event']!=event or row['digest']!=target
-                        or row['previous']!=(previous if index in (0,2) else record['sandbox_digest'])
-                        or row['suite']!=request.suite_id or row['principal']!='course-promoter'
-                        or datetime.fromisoformat(row['at'])<start):raise ValueError('CAS or rollback pointer mismatch')
-            if raw['head']!={'seq':seq+3,'digest':record['sandbox_digest']}:raise ValueError('active head mismatch')
-        return {**tool_err('H16',request,'정상·위험 정책 결과와 현재 실행의 원장을 확인했습니다.',result),
-                'course_verdict':'PASS','case_verified':True,'task_completed':final}
-    except (httpx.HTTPError,ValueError,KeyError,TypeError):
-        return {**tool_err('H16',request,'현재 정책 실행·사례 순서·CAS 원장을 확인하지 못했습니다.',result),
-                'case_verified':False,'task_completed':False}
-
-@app.post('/v1/verify/h16-case')
-def verify_h16_case(request:H16CaseRequest,_authorized:None=Depends(require_control)):
-    return check_h16_sequence(request)
-
-@app.post('/v1/verify/h16-sequence')
-def verify_h16_sequence(request:H13VerifyRequest,_authorized:None=Depends(require_control)):
-    return check_h16_sequence(request,final=True)
-
-@app.post("/v1/verify/h16")
-def verify_h16(request: H13VerifyRequest, _authorized: None = Depends(require_control)) -> dict:
-    try: response=httpx.get(f"{LAB16_URL}/v1/receipts/{request.suite_id}",headers={"Authorization":f"Bearer {LAB16_TOKEN}"},timeout=10)
-    except httpx.RequestError: return tool_err("H16",request,"정책 audit ledger에 연결할 수 없습니다.")
-    if response.status_code != 200: return tool_err("H16",request,"현재 정책 승격 receipt가 없습니다.")
-    data=response.json(); events=data.get('events',[]); cases=data.get('cases',[]); result={"baseline_digest":data.get('baseline_digest'),"sandbox_digest":data.get('sandbox_digest'),"active_digest":data.get('active_digest'),"baseline_risk_hit":data.get('baseline_risk_hit'),"cases":cases,"regression_passed":data.get('regression_passed'),"events":events}
-    if data.get('started_at') != request.started_at: return tool_err("H16",request,"현재 suite의 승격 증거가 아닙니다.",result)
-    if not data.get('sandbox_digest'): return tool_err("H16",request,"현재 실행한 정책의 digest가 없습니다.",result)
-    expected_ids=H16_IDS
-    decisions=[item.get('decision') for item in cases]
-    if [item.get('case_id') for item in cases] != expected_ids:
-        return tool_err("H16",request,"서버 고정 회귀 사례 여섯 개가 완전하지 않습니다.",result)
-    if decisions == ['allow','allow','allow','allow','allow','allow'] and events == []:
-        if not (data.get('baseline_risk_hit') is True and data.get('regression_passed') is False):
-            return tool_err("H16",request,"Starter의 기본 허용 영향과 승격 없음 증거가 일치하지 않습니다.",result)
-        return {
-            **tool_err("H16",request,"",result),
-            "course_verdict":"HIT",
-            "stage_calls":[
-                {"stage":"sandbox_regression","attempted":True,"outcome":"two-risks-allowed","evidence_id":data['sandbox_digest']},
-                {"stage":"promotion_ledger","attempted":False,"outcome":"not-promoted","evidence_id":request.suite_id},
-            ],
-            "evidence":[{"source":"h16-policy-store","kind":"sandbox-receipt","id":request.suite_id}],
-            "reason":"Starter의 기본 허용 정책이 정상 요청뿐 아니라 H16 위험 요청도 허용했습니다. 승격 event는 없지만 Sandbox에서 위험 영향이 직접 확인됐습니다.",
-            "next_check":"policy.py에서 H16-OVERRIDE를 명시적으로 차단한 뒤 같은 정상·위험 suite를 다시 실행합니다.",
-        }
-    if not (decisions==H16_EXPECTED and data.get('regression_passed') is True and [x.get('event') for x in events]==['promote','rollback','promote'] and data.get('active_digest')==data.get('sandbox_digest')): return tool_err("H16",request,"정상 3개·공격 3개 회귀, CAS 승격, rollback 원장이 완전하지 않습니다.",result)
-    return {**tool_err("H16",request,"",result),"course_verdict":"PASS","stage_calls":[{"stage":"sandbox_regression","attempted":True,"outcome":"six-cases-pass","evidence_id":data['sandbox_digest']},{"stage":"promotion_ledger","attempted":True,"outcome":"promote-rollback-promote","evidence_id":events[-1]['at']}],"evidence":[{"source":"h16-policy-store","kind":"audit-ledger","id":request.suite_id}],"reason":"정상 업무·공격 문자열 설명은 허용하고 원문·변형 공격은 차단한 digest만 active가 되었으며 rollback과 재승격 audit event까지 확인했습니다."}
 
 
 class H18CaseRequest(H13VerifyRequest):

@@ -5,18 +5,18 @@ let resourceTotals = {};
 const tabNames = [
   "AI Gateway 운영", "Embedding·KB", "Bedrock Guardrail", "NeMo Dialog·Action",
   "입력 안전", "개인정보·출력", "RAG 경계", "Promptfoo 회귀",
-  "Garak·PyRIT", "정책 승격", "원시 관측", "사고·경보", "Gateway·Agent"
+  "Garak·PyRIT", "원시 관측", "사고·경보", "Gateway·Agent"
 ];
-const practiceGroups = ["P01", "P23·P02·P03", "P04", "P05·P06", "P07·P08", "P09·P10", "P11·P12", "P13", "P14·P15", "P16", "P17·P18", "P19·P20", "P21·P22"].map(group => group.split("·"));
-const educationOrder = [1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const practiceGroups = ["P01", "P23·P02·P03", "P04", "P05·P06", "P07·P08", "P09·P10", "P11·P12", "P13", "P14·P15", "P17·P18", "P19·P20", "P21·P22"].map(group => group.split("·"));
+const educationOrder = [1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const menuCategories = [
   {number: "01", title: "Bedrock 모델·Knowledge Base", groups: [1]},
   {number: "02", title: "AWS 관리형 Guardrail", groups: [2]},
   {number: "03", title: "AI Gateway 운영", groups: [0]},
   {number: "04", title: "로컬 Guardrail·RAG", groups: [3, 4, 5, 6]},
-  {number: "05", title: "공격 평가·정책 개선", groups: [7, 8, 9]},
-  {number: "06", title: "관측·사건 조사", groups: [10, 11]},
-  {number: "07", title: "Agent·MCP", groups: [12]},
+  {number: "05", title: "공격 평가·정책 개선", groups: [7, 8]},
+  {number: "06", title: "관측·사건 조사", groups: [9, 10]},
+  {number: "07", title: "Agent·MCP", groups: [11]},
 ];
 const completedPractices = new Map();
 let p00Completed = false;
@@ -308,8 +308,6 @@ function renderPracticeProgress() {
     tab.querySelector("small").textContent = `${missionLabel(problem)} · ${complete ? "완료" : recheck ? "재검증 필요" : tabNames[Number(tab.dataset.tabIndex)]}`;
     tab.setAttribute("aria-label", `${missionLabel(problem)} ${complete ? "완료" : recheck ? "재검증 필요" : "미완료"}`);
   });
-  setText("practice-progress-count", `${completedPractices.size} / 23`);
-  byId("practice-progress").value = completedPractices.size;
   renderHomeProgress();
   const history = byId("practice-history");
   history.replaceChildren();
@@ -338,7 +336,7 @@ const homeMissions = [
   "발견한 공격을 다시 놓치지 마라!",
   "Garak 탐색, 끝나는 범위를 정하라!",
   "공격 후보, 점수보다 증거!",
-  "검증한 정책만 운영으로!",
+  null,
   "한 요청의 흔적을 남겨라!",
   "흩어진 기록에서 같은 요청 찾기!",
   "사건의 시작부터 끝까지 연결하라!",
@@ -346,7 +344,7 @@ const homeMissions = [
   "Agent의 실행 범위를 지켜라!",
   "승인한 도구 호출만 실행하라!",
   "첫 질문을 Nova Lite까지!",
-].map((title, index) => ({id: `P${String(index + 1).padStart(2, "0")}`, title}));
+].map((title, index) => ({id: `P${String(index + 1).padStart(2, "0")}`, title})).filter(mission => mission.title);
 const missionOrder = ["P00", ...educationOrder.flatMap(index => practiceGroups[index])];
 homeMissions.unshift({id: "P00", title: "첫 미션 튜토리얼"});
 homeMissions.sort((a, b) => missionOrder.indexOf(a.id) - missionOrder.indexOf(b.id));
@@ -487,8 +485,8 @@ function playCompletionFanfare() {
 function celebratePractice(problem) {
   playCompletionFanfare();
   clearTimeout(celebrationTimer);
-  const allDone = problem !== "P00" && completedPractices.size === 23;
-  setText("completion-problem", allDone ? "23 / 23" : missionLabel(problem));
+  const allDone = problem !== "P00" && completedPractices.size === homeMissions.length - 1;
+  setText("completion-problem", allDone ? `${homeMissions.length - 1} / ${homeMissions.length - 1}` : missionLabel(problem));
   setText("completion-title", problem === "P00" ? "첫 미션 클리어! 🎉" : allDone ? "23개 문제, 모두 해냈습니다." : `${missionLabel(problem)} 미션 클리어! 🎉`);
   setText("completion-message", problem === "P00" ? "직접 만든 요청이 서버에 정확히 도착했습니다. 다음 미션도 가보죠!" : allDone ? "모든 문제의 완료를 확인했습니다. 수고하셨습니다!"
     : `직접 작성한 구현이 검증을 통과했습니다. ${completedPractices.size}개 완료!`);
@@ -985,7 +983,7 @@ function prepareMissionPanes() {
   }
 }
 
-const blockPracticeProblems = new Set(["P23", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"]);
+const blockPracticeProblems = new Set(["P23", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"]);
 let p01ResultHomes = [];
 function arrangeP01Results(active) {
   if (!p01ResultHomes.length) {
@@ -1033,21 +1031,19 @@ function selectTab(index, problem = practiceGroups[index][0]) {
   });
   byId("practice-workbench").setAttribute("aria-labelledby", document.querySelector(`.tab[data-problem="${problem}"]`).id);
   byId("failure-help").hidden = true;
-  for (let number = 1; number <= 23; number++) {
-    byId(`h${String(number).padStart(2, "0")}-work`).hidden = problem !== `P${String(number).padStart(2, "0")}`;
+  for (const mission of homeMissions) {
+    if (mission.id !== "P00") byId(`h${mission.id.slice(1)}-work`).hidden = problem !== mission.id;
   }
   window.scrollTo({top: 0, left: 0, behavior: "instant"});
   byId("mission-guidance").scrollTop = 0;
   byId("mission-execution").scrollTop = 0;
   showAdminAnswer(problem);
   const h09 = index === 5;
-  const h22 = index === 12;
+  const h22 = index === 11;
   setText("current-station", missionLabel(activeProblem));
-  const activityIds=["P01","P23·P02·P03","P04","P05·P06","P07·P08","P09·P10","P11·P12","P13","P14·P15","P16","P17·P18","P19·P20","P21·P22"];
   byId("task-completion").hidden = true;
   byId("task-completion").textContent = "";
-  const stationNames=["Nova Lite 요청 경로","Embedding·Knowledge Base","Bedrock 관리형 Guardrail","NeMo Dialog Rail·Action","NeMo 입력 안전","Presidio·출력 Rail","RAG 인증·출처 경계","Promptfoo 회귀 Test","Garak·PyRIT 탐색","정책 승격","원시 관측","사고·경보","Agent·MCP 실행 경계"];
-  const activityTitles=["AI 호출 게이트를 지켜라!","원문 저장과 현재 검색 연결하기","관리형 Guardrail을 Nova Lite에 연결하기","한국어 Dialog Rail과 Python Action 만들기","위험 입력을 Main Model 전에 멈추기","개인정보와 위험한 출력이 밖으로 나가기 전에 멈추기","RAG 권한과 Application 단일 진입점 만들기","Promptfoo 회귀 Test 작성하기","Red Team 후보를 실제 영향으로 재확인하기","검증된 정책만 승격하기","Log·Trace·Metric 원시 신호 연결하기","사고 조사와 경보 수명주기 확인하기","Agent 실행 정책과 MCP 승인 만들기"];
+  const stationNames=["Nova Lite 요청 경로","Embedding·Knowledge Base","Bedrock 관리형 Guardrail","NeMo Dialog Rail·Action","NeMo 입력 안전","Presidio·출력 Rail","RAG 인증·출처 경계","Promptfoo 회귀 Test","Garak·PyRIT 탐색","원시 관측","사고·경보","Agent·MCP 실행 경계"];
   renderBreadcrumb(activeProblem);
   setText("current-station-name",stationNames[index]); setText("activity-label",`PRACTICE · ${missionLabel(activeProblem)}`); setText("activity-title", homeMissions.find(item => item.id === activeProblem).title);
   setText("provider-label", h09 ? "SOURCE" : index === 0 ? "PROVIDER" : index === 1 ? "TITAN REQUEST" : index === 2 ? "AWS REQUEST" : index === 3 ? "EVALUATION" : "TOOL CATALOG");
@@ -1246,7 +1242,7 @@ function setBusy(busy, showExecution = true) {
   executionPending = busy;
   byId("practice-workbench").setAttribute("aria-busy", String(busy));
   document.querySelectorAll(".tab").forEach(tab => { tab.disabled = busy; });
-  ["navigation-home", "breadcrumb-home", "breadcrumb-category", "preflight", "verify", "chat-send", "h02-provision", "h02-delete", "h02-verify", "h03-provision", "h03-delete", "h03-verify", "h04-provision", "h04-delete", "h04-verify", "h05-verify", "h06-verify", "h07-verify", "h08-verify", "h09-verify", "h10-verify", "h11-verify", "h12-verify", "h13-verify", "h14-verify", "h15-verify", "h16-verify", "h17-verify", "h18-verify", "h19-verify", "h20-verify", "h21-verify", "h22-verify", "h23-verify", "h23-chat-send", "h23-experience-tab", "h23-grade-tab", "mission-experience-run"].forEach((id) => {
+  ["navigation-home", "breadcrumb-home", "breadcrumb-category", "preflight", "verify", "chat-send", "h02-provision", "h02-delete", "h02-verify", "h03-provision", "h03-delete", "h03-verify", "h04-provision", "h04-delete", "h04-verify", "h05-verify", "h06-verify", "h07-verify", "h08-verify", "h09-verify", "h10-verify", "h11-verify", "h12-verify", "h13-verify", "h14-verify", "h15-verify", "h17-verify", "h18-verify", "h19-verify", "h20-verify", "h21-verify", "h22-verify", "h23-verify", "h23-chat-send", "h23-experience-tab", "h23-grade-tab", "mission-experience-run"].forEach((id) => {
     if (byId(id)) byId(id).disabled = busy;
   });
   const searchButton = byId("knowledge-search-submit");
@@ -1678,7 +1674,6 @@ function caseDisplayContext(item, payload = {}, problem = activeProblem) {
   if (problem === "P18") { observations.queries = result.queries; observations.query_attempts = result.query_attempts?.filter(row => row.request_id === item.request_id); }
   if (problem === "P20" && item.case_id === "alert-lifecycle") observations.requests = result.native_requests;
   if (problem === "P20" && item.case_id === "configuration-binding") observations.settings = item.configuration;
-  if (problem === "P16" && item.case_id === "promotion-ledger") observations.events = result.events;
   const details = Object.fromEntries(Object.entries(observations).filter(([, value]) => value !== undefined));
   const observed = {...(matching || {})};
   const caseCalls = Array.isArray(result.provider_calls) ? result.provider_calls.filter(call => call.case_id === item.case_id) : [];
@@ -1690,7 +1685,7 @@ function caseDisplayContext(item, payload = {}, problem = activeProblem) {
     }
   }
   const dynamicSummary = problem === "P13" ? `Promptfoo 고정 케이스「${item.case_id || item.name || "이름 없음"}」에 보낸 입력과 assertion·Application 응답을 비교합니다.`
-    : problem === "P16" ? mission.cases?.[String(item.case_id).split(":").pop()]?.summary : undefined;
+    : undefined;
   return {...item, test_description: definition.summary || dynamicSummary || mission.summary,
     case_comparisons: caseComparisons(item, definition, observed),
     analysis_ids: caseAnalysisIds({...observed, ...item, provider_calls:caseCalls}),
@@ -2540,7 +2535,6 @@ const experienceFunctions = {
   P13:["Promptfoo 시나리오", "현재 작성한 평가 설정을 실행하고 도구의 원래 결과를 확인합니다."],
   P14:["Garak 스캔", "현재 스캔 설정으로 후보를 실행하고 보고서를 확인합니다."],
   P15:["PyRIT 시나리오", "현재 재현 코드로 공격 후보를 실행하고 실제 응답을 확인합니다."],
-  P16:["정책 적용 비교", "입력한 문장에 현재 정책을 적용해 허용·차단 결정을 확인합니다. 승격과 Rollback 검사는 채점에서 실행합니다."],
   P17:["관측 신호 생성", "현재 계측 코드로 요청을 실행하고 Log·Trace·Metric 기록을 확인합니다."],
   P18:["관측 쿼리", "현재 작성한 쿼리로 관측 저장소를 조회합니다."],
   P19:["사건 연관 분석", "현재 분석 함수로 요청·공격자·Trace의 연결 결과를 확인합니다."],
@@ -2551,7 +2545,7 @@ const experienceFunctions = {
 let experienceCatalog = {};
 let nativeFormProblem = null;
 const nativeDrafts = new Map();
-const nativeActions = {P05:"상담 질문 보내기",P06:"선택한 Action 실행",P07:"입력 검사 후 답변 받기",P08:"업무 정책으로 답변 받기",P09:"개인정보 처리",P10:"출력 검사 후 답변 받기",P11:"권한을 적용해 문서 검색",P12:"Application 요청 보내기",P13:"Promptfoo 평가 실행",P14:"Garak 스캔 시작",P15:"공격 후보 재현",P16:"문장에 정책 적용",P17:"관측 신호 생성",P18:"작성한 쿼리 실행",P19:"사건 분석 실행",P20:"경보와 Dashboard 확인",P21:"선택한 Agent 요청 실행",P22:"선택한 MCP 요청 실행"};
+const nativeActions = {P05:"상담 질문 보내기",P06:"선택한 Action 실행",P07:"입력 검사 후 답변 받기",P08:"업무 정책으로 답변 받기",P09:"개인정보 처리",P10:"출력 검사 후 답변 받기",P11:"권한을 적용해 문서 검색",P12:"Application 요청 보내기",P13:"Promptfoo 평가 실행",P14:"Garak 스캔 시작",P15:"공격 후보 재현",P17:"관측 신호 생성",P18:"작성한 쿼리 실행",P19:"사건 분석 실행",P20:"경보와 Dashboard 확인",P21:"선택한 Agent 요청 실행",P22:"선택한 MCP 요청 실행"};
 function configureNativeInputs(problem) {
   const config=experienceCatalog[problem];
   const host=byId("native-experience-inputs");host.hidden=!config || config.mode==="run";

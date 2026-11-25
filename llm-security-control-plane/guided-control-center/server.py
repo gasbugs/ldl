@@ -81,7 +81,6 @@ LAB12_URL = os.getenv("GUIDED_LAB12_URL", "http://guided-h12-application-pipelin
 LAB13_URL = os.getenv("GUIDED_LAB13_URL", "http://guided-h13-promptfoo:8000")
 LAB14_URL = os.getenv("GUIDED_LAB14_URL", "http://guided-h14-garak:8000")
 LAB15_URL = os.getenv("GUIDED_LAB15_URL", "http://guided-h15-pyrit:8000")
-LAB16_URL = os.getenv("GUIDED_LAB16_URL", "http://guided-h16-policy-promotion:8000")
 OBSERVABILITY_URL = os.getenv("GUIDED_OBSERVABILITY_URL", "http://guided-observability:8000")
 H18_URL = os.getenv("GUIDED_H18_URL", "http://guided-h18-queries:8000")
 H18_TOKEN = os.environ["GUIDED_CONTROL_H18_TOKEN"]
@@ -118,7 +117,6 @@ LAB12_TOKEN = os.environ["GUIDED_CONTROL_LAB12_TOKEN"]
 LAB13_TOKEN = os.environ["GUIDED_CONTROL_LAB13_TOKEN"]
 LAB14_TOKEN = os.environ["GUIDED_CONTROL_LAB14_TOKEN"]
 LAB15_TOKEN = os.environ["GUIDED_CONTROL_LAB15_TOKEN"]
-LAB16_TOKEN = os.environ["GUIDED_CONTROL_LAB16_TOKEN"]
 OBSERVABILITY_TOKEN = os.environ["GUIDED_CONTROL_OBSERVABILITY_TOKEN"]
 H09_SINK_CONTROL_TOKEN = os.environ["GUIDED_H09_SINK_CONTROL_TOKEN"]
 H06_PROVIDER_CONTROL_TOKEN = os.environ["GUIDED_H06_PROVIDER_CONTROL_TOKEN"]
@@ -253,7 +251,7 @@ async def boundary_middleware(request: Request, call_next):
     native_state = None
     attempt = None
     if (request.method == "POST" and len(parts) == 4 and parts[:2] == ["api", "practice"]
-            and parts[2] in {f"P{number:02d}" for number in range(1, 24)}
+            and parts[2] in {f"P{number:02d}" for number in range(1, 24) if number != 16}
             and parts[3] == "verify"):
         try:
             session = session_from_cookie(request.cookies.get("guided_session"))
@@ -282,7 +280,7 @@ async def boundary_middleware(request: Request, call_next):
             native_state["phase"]="finished";native_state["current_case"]=None
             NATIVE_SESSION.reset(native_context)
     if (len(parts) == 4 and parts[:2] == ["api", "practice"]
-            and parts[2] in {f"P{number:02d}" for number in range(1, 24)}
+            and parts[2] in {f"P{number:02d}" for number in range(1, 24) if number != 16}
             and parts[3] == "verify" and response.status_code == 200):
         body = b"".join([chunk async for chunk in response.body_iterator])
         payload = practice_envelope(json.loads(body), parts[2])
@@ -300,7 +298,7 @@ async def boundary_middleware(request: Request, call_next):
                    if key.lower() != "content-length"}
         response = JSONResponse(content=payload, status_code=200, headers=headers,
                                 background=response.background)
-    problem = next((part for part in parts if part in {f"P{number:02d}" for number in range(24)}), None)
+    problem = next((part for part in parts if part in {f"P{number:02d}" for number in range(24) if number != 16}), None)
     if problem and response.headers.get("content-type", "").startswith("application/json"):
         raw = b"".join([chunk async for chunk in response.body_iterator]) if hasattr(response, "body_iterator") else response.body
         payload = json.loads(raw)
@@ -461,11 +459,11 @@ def bootstrap(session: tuple[str, dict] = Depends(require_session)) -> dict:
         "workspace": "practice",
         "course": {
             "tabs": 13,
-            "practices": 23,
-            "practice_ids": [f"P{number:02d}" for number in range(1, 24)],
-            "execution_ids": {f"P{number:02d}": f"H{number:02d}" for number in range(1, 24)},
-            "hands_on": 23,
-            "implemented_hands_on": [f"H{number:02d}" for number in range(1, 24)],
+            "practices": 22,
+            "practice_ids": [f"P{number:02d}" for number in range(1, 24) if number != 16],
+            "execution_ids": {f"P{number:02d}": f"H{number:02d}" for number in range(1, 24) if number != 16},
+            "hands_on": 22,
+            "implemented_hands_on": [f"H{number:02d}" for number in range(1, 24) if number != 16],
         },
         "official_uis": [
             {
@@ -562,7 +560,6 @@ def bootstrap(session: tuple[str, dict] = Depends(require_session)) -> dict:
             },
             {"hands_on_id": "H14", "service": "guided-h14-garak", "source_path": "llm-security-control-plane/guided-labs/h14-garak/garak-config.yaml"},
             {"hands_on_id": "H15", "service": "guided-h15-pyrit", "source_path": "llm-security-control-plane/guided-labs/h15-pyrit/attack.py"},
-            {"hands_on_id": "H16", "service": "guided-h16-policy-promotion", "source_path": "llm-security-control-plane/guided-labs/h16-policy-promotion/policy.py"},
             {"hands_on_id": "H17", "service": "guided-h17-telemetry", "source_path": "~/owasp-llm-practice/P06-01_instrumentation.py"},
             {"hands_on_id": "H18", "service": "guided-h18-queries", "source_path": "~/owasp-llm-practice/P06-02_queries.yaml"},
             {"hands_on_id": "H19", "service": "guided-h19-investigation", "source_path": "~/owasp-llm-practice/P06-03_investigation.py"},
@@ -591,7 +588,7 @@ def bootstrap(session: tuple[str, dict] = Depends(require_session)) -> dict:
 def admin_answer(problem: str, session: tuple[str, dict] = Depends(require_session)) -> dict:
     if not session[1].get("admin"):
         raise HTTPException(status_code=403, detail="admin mode is required")
-    if problem not in {f"P{number:02d}" for number in range(24)}:
+    if problem not in {f"P{number:02d}" for number in range(24) if number != 16}:
         raise HTTPException(status_code=404, detail="answer does not exist")
     answer_path = ADMIN_ANSWERS / f"{problem}.md"
     if not answer_path.is_file():
@@ -2554,49 +2551,7 @@ async def run_scanner_checks(activity,url,token):
         return {"activity_id":activity,"execution_id":suite_id,"course_verdict":"ERR","task_completed":False,"stage_calls":[],"result":{"cases":cases},"reason":"현재 실행의 제한 또는 native 보고서 증거가 없습니다."}
 
 
-async def run_policy_checks(url,token):
-    suite_id=str(uuid.uuid4());started=datetime.now(timezone.utc).isoformat()
-    body={'suite_id':suite_id,'started_at':started};cases=[]
-    names=['normal-business','normal-explanation','risk-marker','risk-paraphrase','normal-quoted','risk-marker-variant','promotion-ledger']
-    state=NATIVE_SESSION.get();progress=state['native_progress'] if state else {}
-    progress.update(total=len(names),cases=cases,phase='running');current=names[0]
-    try:
-        async with httpx.AsyncClient(timeout=PROVISION_TIMEOUT) as client:
-            for current in names:
-                progress.update(phase='running',current_case={'case_id':current,'status':'실행 중','started_at':datetime.now(timezone.utc).isoformat()})
-                final=current=='promotion-ledger'
-                sent=body if final else {**body,'case_id':current}
-                endpoint='/v1/promote-sequence' if final else '/v1/run-case'
-                executed=await client.post(url+endpoint,json=sent,headers={'Authorization':f'Bearer {token}'})
-                if executed.status_code!=200 or executed.json().get('suite_id')!=suite_id:raise ValueError()
-                progress['phase']='verifying';progress['current_case']['status']='독립 검증 중'
-                endpoint='/v1/verify/h16-sequence' if final else '/v1/verify/h16-case'
-                checked=await client.post(VERIFIER_URL+endpoint,json=sent,headers={'Authorization':f'Bearer {VERIFIER_TOKEN}'})
-                if checked.status_code!=200:raise ValueError()
-                payload=checked.json();verdict=payload.get('course_verdict')
-                if (payload.get('activity_id')!='H16' or payload.get('execution_id')!=suite_id
-                        or payload.get('started_at')!=started or payload.get('verified_by')!='guided-evidence-verifier'
-                        or verdict not in {'PASS','HIT','ERR'}
-                        or payload.get('case_verified') is not (verdict=='PASS')
-                        or payload.get('task_completed') is not (final and verdict=='PASS')):raise ValueError()
-                actual=payload.get('result',{}).get('cases',[])
-                row={} if final else actual[-1]
-                cases.append({**row,'case_id':current,'status':verdict,'case_verified':verdict=='PASS','reason':payload['reason']})
-                if verdict!='PASS':
-                    cases.extend({'case_id':name,'status':'미실행','reason':'앞 케이스 실패로 중단'} for name in names[len(cases):])
-                    payload['result']['cases']=cases;return payload
-                if final:
-                    payload['result']['cases']=cases;return payload
-    except (httpx.HTTPError,ValueError,KeyError,TypeError,IndexError):
-        cases.append({'case_id':current,'status':'ERR','reason':'현재 정책 실행과 원장을 확인하세요.'})
-        cases.extend({'case_id':name,'status':'미실행','reason':'앞 케이스 실패로 중단'} for name in names[len(cases):])
-        return {'activity_id':'H16','execution_id':suite_id,'course_verdict':'ERR','task_completed':False,
-                'stage_calls':[],'result':{'cases':cases},'reason':'정책 실행 또는 독립 검증 기록이 없습니다.'}
-
-
 async def run_tool_activity(activity: str, lab_url: str, lab_token: str) -> dict:
-    if activity == "H16" and not EXPLORATION.get():
-        return await run_policy_checks(lab_url,lab_token)
     if activity in {"H14","H15"} and not EXPLORATION.get():
         return await run_scanner_checks(activity,lab_url,lab_token)
     suite_id = str(uuid.uuid4())
@@ -2622,12 +2577,6 @@ async def verify_h14(request: Request, session: tuple[str, dict] = Depends(requi
 async def verify_h15(request: Request, session: tuple[str, dict] = Depends(require_csrf)) -> dict:
     if await request.body(): raise HTTPException(422, "verification inputs are server-owned")
     return await run_tool_activity("H15", LAB15_URL, LAB15_TOKEN)
-
-@app.post("/api/hands-on/H16/verify")
-@app.post("/api/practice/P16/verify")
-async def verify_h16(request: Request, session: tuple[str, dict] = Depends(require_csrf)) -> dict:
-    if await request.body(): raise HTTPException(422, "verification inputs are server-owned")
-    return await run_tool_activity("H16", LAB16_URL, LAB16_TOKEN)
 
 async def run_telemetry_checks(url,token):
     suite=str(uuid.uuid4());started=datetime.now(timezone.utc).isoformat();cases=[];children=[]
@@ -3052,7 +3001,7 @@ class PracticeBlockSubmission(BaseModel):
 
 @app.get("/api/block-practice/{problem}/template")
 def practice_block_template(problem: str):
-    if problem not in ("P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"):
+    if problem not in ("P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"):
         raise HTTPException(404, "block practice unavailable")
     from block_submission import template
     return {"template": template(problem)}
@@ -3060,7 +3009,7 @@ def practice_block_template(problem: str):
 
 @app.post("/api/block-practice/{problem}/submit")
 def submit_practice_blocks(problem: str, body: PracticeBlockSubmission, session: tuple[str, dict] = Depends(require_csrf)):
-    if problem not in ("P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"):
+    if problem not in ("P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"):
         raise HTTPException(404, "block practice unavailable")
     from block_submission import apply
     try:
@@ -3168,7 +3117,7 @@ async def experience_activity(problem: str, request: Request, session: tuple[str
         "P08": verify_h08_self_check_input, "P09": verify_h09_presidio_delivery,
         "P10": verify_h10_output_rail, "P11": verify_h11_rag_provenance,
         "P12": verify_h12_application_pipeline, "P13": verify_h13_promptfoo,
-        "P14": verify_h14, "P15": verify_h15, "P16": verify_h16,
+        "P14": verify_h14, "P15": verify_h15,
         "P17": verify_h17, "P18": verify_h18, "P19": verify_h19,
         "P20": verify_h20, "P21": verify_h21_agent_policy, "P22": verify_h22_mcp_server,
     }
@@ -3191,7 +3140,7 @@ async def experience_activity(problem: str, request: Request, session: tuple[str
     if catalog.get("editable") and "message" in body and (not isinstance(body["message"],str) or not body["message"].strip() or len(body["message"])>1000):raise HTTPException(422,"1~1000자의 문장을 입력하세요.")
     if problem=="P09" and body.get("stage","input") not in {"input","output"}:raise HTTPException(422,"검사 위치를 선택하세요.")
     if mode=="operation" and body.get("operation") not in {item["id"] for item in catalog["options"]}:raise HTTPException(422,"실행할 기능을 선택하세요.")
-    if problem in {"P05","P09","P11","P16","P21","P22"}:
+    if problem in {"P05","P09","P11","P21","P22"}:
         return await native_preview(problem,({"case_id":body["case_id"],**({"query":body["message"]} if "message" in body else {})} if problem=="P11" else body),session)
     # Existing bounded tool scans are real features; they do not award completion.
     selected_context=PREVIEW_CASE.set(body.get("case_id"))

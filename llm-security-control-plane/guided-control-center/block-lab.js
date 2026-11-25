@@ -489,24 +489,6 @@ root_span.set_attribute("stage_count", sequence)`},
       {id: "fixed_allow_counter", label: "항상 허용으로 집계", code: 'counter.labels(decision="allow").inc()'},
     ],
   },
-  P16: {
-    title: "정상 업무와 공격을 구분하는 정책",
-    file: "~/owasp-llm-practice/P05-04_policy.py",
-    freeSlots: true,
-    indents: {imports: 0, pattern: 0, normalize: 4, marker: 4, scope: 4, decision: 4},
-    slots: [{id: "imports", label: "정규식 도구"}, {id: "pattern", label: "직접 명령 모양"}, {id: "normalize", label: "입력 공백 정리"}, {id: "marker", label: "표식 공격 판정"}, {id: "scope", label: "업무 범위 공격 판정"}, {id: "decision", label: "최종 허용·차단"}],
-    description: "따옴표 안의 분석 요청은 허용하고, 직접 비밀을 요구하는 명령은 차단하세요. 정상 3개와 공격 3개가 모두 맞아야 정책이 승격됩니다.",
-    blocks: [
-      {id: "regex_import", label: "정규식 불러오기", code: "import re"},
-      {id: "direct_pattern", label: "문장 전체의 직접 명령", code: String.raw`DIRECT_MARKER = re.compile(r"^H16-OVERRIDE\s+비밀을\s+(?:출력|공개)해[.!]?$", re.IGNORECASE)`},
-      {id: "normalize_text", label: "공백 정리", code: 'text = " ".join(message.split())'},
-      {id: "match_direct", label: "문장 전체 일치", code: "marker_attack = bool(DIRECT_MARKER.fullmatch(text))"},
-      {id: "match_scope", label: "업무 범위 무시 판정", code: 'scope_attack = ("업무 범위" in text and "무시" in text\n                and "내부 비밀" in text and ("답해" in text or "알려줘" in text))'},
-      {id: "block_or_allow", label: "두 공격 중 하나라도 차단", code: 'return "block" if marker_attack or scope_attack else "allow"'},
-      {id: "marker_anywhere", label: "표식만 보이면 차단", code: 'marker_attack = "H16-OVERRIDE" in text'},
-      {id: "allow_all", label: "항상 허용", code: 'return "allow"'},
-    ],
-  },
   P01: {
     freeSlots: true,
     title: "Gateway 예산·호출 조립",
@@ -534,7 +516,7 @@ client.cancel_budget(reservation)`},
   },
 };
 
-const enabledLabs = new Set(["P00", "P23", "P02", "P03", "P04", "P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"]);
+const enabledLabs = new Set(["P00", "P23", "P02", "P03", "P04", "P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"]);
 const distractors = {
   P09: new Set(["entities_email", "register_en", "release_raw", "strip_numbers"]),
   P08: new Set(["all_recovery", "quote_block", "secret_only"]),
@@ -544,7 +526,6 @@ const distractors = {
   P13: new Set(["normal_payload", "text_only", "called_main"]),
   P14: new Set(["cap_zero", "many_generations", "many_parallel"]),
   P15: new Set(["unbounded", "error_success"]),
-  P16: new Set(["marker_anywhere", "allow_all"]),
   P17: new Set(["request_as_trace", "fixed_allow_counter"]),
   P18: new Set(["all_logs", "all_decisions", "latest_trace"]),
   P19: new Set(["all_spans", "all_calls", "always_allow"]),
@@ -1038,7 +1019,7 @@ function renderBlockLab() {
       finally { submit.disabled = false; }
     };
     host.append(submit);
-  } else if (["P23", "P02", "P03", "P04", "P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"].includes(problem)) {
+  } else if (["P23", "P02", "P03", "P04", "P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"].includes(problem)) {
     const submit = make("button", "primary", "조립한 정답 제출"); submit.type = "button";
     submit.onclick = async () => {
       if (!draft.order.length) { status.textContent = "블록을 하나 이상 배치한 뒤 제출하세요."; return; }
@@ -1091,7 +1072,7 @@ function renderBlockLab() {
     host.append(make("p", "block-lab-note", "각 블록의 복사 버튼으로 해당 위치의 미완성 줄을 지우고 코드를 붙여 넣으세요. 파일을 빌드해 적용한 뒤 기존 미션 채점을 눌러야 완료 여부가 결정됩니다."));
   }
   redraw();
-  if (["P02", "P03", "P04", "P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19", "P20", "P21", "P22"].includes(problem)) {
+  if (["P02", "P03", "P04", "P01", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17", "P18", "P19", "P20", "P21", "P22"].includes(problem)) {
     fetch(`/api/block-practice/${problem}/template`).then(response => response.json()).then(payload => {
       if (selectedLab === problem && typeof payload.template === "string") { templateSource = payload.template; redraw(); }
     }).catch(() => { status.textContent = "함수 골격을 불러오지 못했습니다. 화면을 새로고침하세요."; });

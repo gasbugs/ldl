@@ -61,7 +61,6 @@ services:
       - ${GUIDED_P13_LEARNER_FILE:-${HOME}/owasp-llm-practice/P05-01_promptfooconfig.yaml}:/block-work/P05-01_promptfooconfig.yaml:rw
       - ${GUIDED_P14_LEARNER_FILE:-${HOME}/owasp-llm-practice/P05-02_garak-config.yaml}:/block-work/P05-02_garak-config.yaml:rw
       - ${GUIDED_P15_LEARNER_FILE:-${HOME}/owasp-llm-practice/P05-03_attack.py}:/block-work/P05-03_attack.py:rw
-      - ${GUIDED_P16_LEARNER_FILE:-${HOME}/owasp-llm-practice/P05-04_policy.py}:/block-work/P05-04_policy.py:rw
       - ${GUIDED_P17_LEARNER_FILE:-${HOME}/owasp-llm-practice/P06-01_instrumentation.py}:/block-work/P06-01_instrumentation.py:rw
       - ${GUIDED_P18_LEARNER_FILE:-${HOME}/owasp-llm-practice/P06-02_queries.yaml}:/block-work/P06-02_queries.yaml:rw
       - ${GUIDED_P19_LEARNER_FILE:-${HOME}/owasp-llm-practice/P06-03_investigation.py}:/block-work/P06-03_investigation.py:rw
@@ -91,7 +90,6 @@ services:
       GUIDED_CONTROL_LAB13_TOKEN: ${GUIDED_CONTROL_LAB13_TOKEN:?Set GUIDED_CONTROL_LAB13_TOKEN}
       GUIDED_CONTROL_LAB14_TOKEN: ${GUIDED_CONTROL_LAB14_TOKEN:?Set GUIDED_CONTROL_LAB14_TOKEN}
       GUIDED_CONTROL_LAB15_TOKEN: ${GUIDED_CONTROL_LAB15_TOKEN:?Set GUIDED_CONTROL_LAB15_TOKEN}
-      GUIDED_CONTROL_LAB16_TOKEN: ${GUIDED_CONTROL_LAB16_TOKEN:?Set GUIDED_CONTROL_LAB16_TOKEN}
       GUIDED_CONTROL_OBSERVABILITY_TOKEN: ${GUIDED_CONTROL_OBSERVABILITY_TOKEN:?Set GUIDED_CONTROL_OBSERVABILITY_TOKEN}
       GUIDED_CONTROL_H18_TOKEN: ${GUIDED_CONTROL_H18_TOKEN:?Set GUIDED_CONTROL_H18_TOKEN}
       GUIDED_CONTROL_H19_TOKEN: ${GUIDED_CONTROL_H19_TOKEN:?Set GUIDED_CONTROL_H19_TOKEN}
@@ -123,7 +121,6 @@ services:
       GUIDED_LAB13_URL: http://guided-h13-promptfoo:8000
       GUIDED_LAB14_URL: http://guided-h14-garak:8000
       GUIDED_LAB15_URL: http://guided-h15-pyrit:8000
-      GUIDED_LAB16_URL: http://guided-h16-policy-promotion:8000
       GUIDED_OBSERVABILITY_URL: http://guided-observability:8000
       GUIDED_H09_SINK_URL: http://guided-h09-delivery-sink:8000
       GUIDED_H06_PROVIDER_URL: http://guided-h06-action-provider:8000
@@ -222,7 +219,6 @@ services:
       GUIDED_VERIFIER_LAB13_TOKEN: ${GUIDED_VERIFIER_LAB13_TOKEN:?Set GUIDED_VERIFIER_LAB13_TOKEN}
       GUIDED_VERIFIER_LAB14_TOKEN: ${GUIDED_VERIFIER_LAB14_TOKEN:?Set GUIDED_VERIFIER_LAB14_TOKEN}
       GUIDED_VERIFIER_LAB15_TOKEN: ${GUIDED_VERIFIER_LAB15_TOKEN:?Set GUIDED_VERIFIER_LAB15_TOKEN}
-      GUIDED_VERIFIER_LAB16_TOKEN: ${GUIDED_VERIFIER_LAB16_TOKEN:?Set GUIDED_VERIFIER_LAB16_TOKEN}
       GUIDED_VERIFIER_OBSERVABILITY_TOKEN: ${GUIDED_VERIFIER_OBSERVABILITY_TOKEN:?Set GUIDED_VERIFIER_OBSERVABILITY_TOKEN}
       GUIDED_VERIFIER_H18_TOKEN: ${GUIDED_VERIFIER_H18_TOKEN:?Set GUIDED_VERIFIER_H18_TOKEN}
       GUIDED_VERIFIER_H19_TOKEN: ${GUIDED_VERIFIER_H19_TOKEN:?Set GUIDED_VERIFIER_H19_TOKEN}
@@ -261,7 +257,6 @@ services:
       GUIDED_LAB13_URL: http://guided-h13-promptfoo:8000
       GUIDED_LAB14_URL: http://guided-h14-garak:8000
       GUIDED_LAB15_URL: http://guided-h15-pyrit:8000
-      GUIDED_LAB16_URL: http://guided-h16-policy-promotion:8000
       GUIDED_OBSERVABILITY_URL: http://guided-observability:8000
       GUIDED_LOKI_URL: http://loki:3100
       GUIDED_TEMPO_URL: http://tempo:3200
@@ -734,17 +729,6 @@ services:
     depends_on: {guided-h15-target: {condition: service_healthy}}
     healthcheck: {test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')"], interval: 60s, start_interval: 15s, start_period: 90s, timeout: 3s, retries: 3}
 
-  guided-h16-policy-promotion:
-    <<: *guided-service
-    build: {context: ../../llm-security-control-plane, dockerfile: guided-labs/h16-policy-promotion/Containerfile}
-    image: localhost/llm-security-guided-h16-policy-promotion:${GUIDED_IMAGE_VERSION:-0.1.0}
-    container_name: llm-security-guided-h16-policy-promotion
-    environment:
-      GUIDED_CONTROL_LAB16_TOKEN: ${GUIDED_CONTROL_LAB16_TOKEN:?Set GUIDED_CONTROL_LAB16_TOKEN}
-      GUIDED_VERIFIER_LAB16_TOKEN: ${GUIDED_VERIFIER_LAB16_TOKEN:?Set GUIDED_VERIFIER_LAB16_TOKEN}
-    volumes: [guided-h16-policy:/state:rw]
-    healthcheck: {test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')"], interval: 60s, start_interval: 15s, start_period: 90s, timeout: 3s, retries: 3}
-
   guided-h18-queries:
     <<: *guided-service
     build: {context: ../../llm-security-control-plane, dockerfile: guided-labs/h18-product-queries/Containerfile}
@@ -1154,7 +1138,6 @@ volumes:
   guided-h13-promptfoo-artifacts:
   guided-h14-artifacts:
   guided-h15-artifacts:
-  guided-h16-policy:
   guided-h18-query-state:
   guided-h19-investigation-state:
   guided-h17-telemetry-state:
