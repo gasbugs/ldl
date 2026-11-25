@@ -50,9 +50,18 @@ resource "aws_iam_role_policy" "course_preparation" {
         Resource = aws_iam_role.learner_session.arn
       },
       {
-        Effect   = "Allow"
-        Action   = ["iam:GetRole", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies", "iam:ListRolePolicies"]
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole", "iam:GetRolePolicy", "iam:ListAttachedRolePolicies", "iam:ListRolePolicies",
+          "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:DeleteRole"
+        ]
         Resource = [for role in aws_iam_role.knowledge_source : role.arn]
+      },
+      {
+        Effect    = "Allow"
+        Action    = "iam:CreateRole"
+        Resource  = [for role in aws_iam_role.knowledge_source : role.arn]
+        Condition = { StringEquals = local.request_owners }
       },
       {
         Effect   = "Allow"
@@ -65,24 +74,24 @@ resource "aws_iam_role_policy" "course_preparation" {
       {
         Effect = "Allow"
         Action = [
-          "s3:CreateBucket", "s3:GetBucketPublicAccessBlock", "s3:GetBucketTagging", "s3:ListBucket",
-          "s3:PutBucketPublicAccessBlock", "s3:PutBucketTagging"
+          "s3:CreateBucket", "s3:DeleteBucket", "s3:GetBucketPublicAccessBlock", "s3:GetBucketTagging",
+          "s3:GetBucketVersioning", "s3:ListBucket", "s3:PutBucketPublicAccessBlock", "s3:PutBucketTagging"
         ]
         Resource = [for contract in local.knowledge_contracts : "arn:aws:s3:::${contract.source_bucket}"]
       },
       {
         Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject"]
+        Action   = ["s3:DeleteObject", "s3:GetObject", "s3:PutObject"]
         Resource = [for contract in local.knowledge_contracts : "arn:aws:s3:::${contract.source_bucket}/${contract.source_prefix}*"]
       },
       {
         Effect   = "Allow"
-        Action   = ["s3vectors:CreateVectorBucket", "s3vectors:GetVectorBucket"]
+        Action   = ["s3vectors:CreateVectorBucket", "s3vectors:DeleteVectorBucket", "s3vectors:GetVectorBucket"]
         Resource = [for contract in local.knowledge_contracts : contract.vector_bucket_arn]
       },
       {
         Effect   = "Allow"
-        Action   = ["s3vectors:CreateIndex", "s3vectors:GetIndex", "s3vectors:ListVectors"]
+        Action   = ["s3vectors:CreateIndex", "s3vectors:DeleteIndex", "s3vectors:GetIndex", "s3vectors:ListVectors"]
         Resource = [for contract in local.knowledge_contracts : contract.index_arn]
       },
       {
@@ -116,7 +125,8 @@ resource "aws_iam_role_policy" "course_preparation" {
         Action = [
           "bedrock:CreateDataSource", "bedrock:GetDataSource", "bedrock:GetIngestionJob", "bedrock:GetKnowledgeBase",
           "bedrock:GetKnowledgeBaseDocuments", "bedrock:ListDataSources", "bedrock:ListIngestionJobs",
-          "bedrock:ListTagsForResource", "bedrock:Retrieve", "bedrock:StartIngestionJob"
+          "bedrock:ListTagsForResource", "bedrock:Retrieve", "bedrock:StartIngestionJob",
+          "bedrock:DeleteDataSource", "bedrock:DeleteKnowledgeBase"
         ]
         Resource = "${local.bedrock_prefix}:knowledge-base/*"
         Condition = {
@@ -125,7 +135,7 @@ resource "aws_iam_role_policy" "course_preparation" {
       },
       {
         Effect   = "Allow"
-        Action   = ["bedrock:ApplyGuardrail", "bedrock:GetGuardrail", "bedrock:ListTagsForResource"]
+        Action   = ["bedrock:ApplyGuardrail", "bedrock:DeleteGuardrail", "bedrock:GetGuardrail", "bedrock:ListTagsForResource"]
         Resource = "${local.bedrock_prefix}:guardrail/*"
         Condition = {
           StringEquals = merge(local.course_owners, { "aws:ResourceTag/Activity" = "P04" })

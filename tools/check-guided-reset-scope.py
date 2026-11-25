@@ -22,6 +22,18 @@ def aws(service, operation, *args):
                               *args, "--output", "json"))
 
 
+def aws_optional(service, operation, *args, missing):
+    process = subprocess.run(
+        ("aws", service, operation, "--region", "us-east-1", *args, "--output", "json"),
+        text=True, capture_output=True, timeout=60,
+    )
+    if process.returncode == 0:
+        return json.loads(process.stdout or "{}")
+    if any(code in process.stderr for code in missing):
+        return None
+    raise RuntimeError(process.stderr.strip()[-600:] or f"AWS {service} {operation} failed")
+
+
 def practice_files():
     if not WORKSPACE.is_dir() or WORKSPACE.is_symlink():
         raise RuntimeError("Practice 작업 폴더가 없거나 심볼릭 링크입니다.")
@@ -70,12 +82,18 @@ def aws_resources():
              if any(row.get("name", "").startswith(prefix) for prefix in prefixes)]
     guards = [row for row in aws("bedrock", "list-guardrails").get("guardrails", [])
               if row.get("name") == guardrail]
-    buckets = [row["Name"] for row in aws("s3api", "list-buckets").get("Buckets", [])
-               if any(row["Name"].startswith(prefix) for prefix in prefixes)]
-    vectors = [row for row in aws("s3vectors", "list-vector-buckets").get("vectorBuckets", [])
-               if any(row.get("vectorBucketName", "").startswith(prefix) for prefix in prefixes)]
-    roles = [row["RoleName"] for row in aws("iam", "list-roles").get("Roles", [])
-             if any(row["RoleName"].startswith(prefix) for prefix in prefixes)]
+    bucket_names = [f"{prefix}-source" for prefix in prefixes]
+    buckets = [name for name in bucket_names if aws_optional(
+        "s3api", "head-bucket", "--bucket", name, "--expected-bucket-owner", account,
+        missing=("404", "NoSuchBucket")) is not None]
+    vector_names = [f"{prefix}-vectors" for prefix in prefixes]
+    vectors = [result for name in vector_names if (result := aws_optional(
+        "s3vectors", "get-vector-bucket", "--vector-bucket-name", name,
+        missing=("NotFoundException", "ResourceNotFoundException"))) is not None]
+    role_names = [f"{prefix}-knowledge-base-role" if prefix == prefixes[0]
+                  else f"{prefix}-kb-role" for prefix in prefixes]
+    roles = [name for name in role_names if aws_optional(
+        "iam", "get-role", "--role-name", name, missing=("NoSuchEntity",)) is not None]
     return {"account": account, "region": "us-east-1", "knowledge_bases": bases,
             "guardrails": guards, "source_buckets": buckets,
             "vector_buckets": vectors, "roles": roles}
