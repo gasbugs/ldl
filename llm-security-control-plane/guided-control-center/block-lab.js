@@ -581,7 +581,7 @@ function blockSection(problem, id) {
   const config = BLOCK_LABS[problem];
   const block = config.blocks.find(item => item.id === id);
   return config.freeSlots
-    ? (currentDraft(problem).slots[id] || config.slots[0].id)
+    ? (currentDraft(problem).slots[id] || block?.slot || config.slots[0].id)
     : (block?.slot || config.slots?.[0]?.id || "main");
 }
 function sectionHighlightClass(problem, section) {
@@ -785,7 +785,10 @@ function renderBlockLab() {
   const stack = make("div", "block-lab-stack"); stack.append(make("h4", "", problem === "P23" ? "함수 안에 블록 배치" : "내 작업판"));
   const slots = config.slots || [{id: "main", label: "조립한 블록 순서"}];
   const workspaces = new Map();
-  const blockSlot = id => config.freeSlots ? (draft.slots?.[id] || slots[0].id) : (config.blocks.find(block => block.id === id)?.slot || slots[0].id);
+  const blockSlot = id => {
+    const block = config.blocks.find(item => item.id === id);
+    return config.freeSlots ? (draft.slots?.[id] || block?.slot || slots[0].id) : (block?.slot || slots[0].id);
+  };
   for (const slot of slots) {
     const zone = make("section", "block-lab-zone"); zone.dataset.slot = slot.id;
     const heading = make("div", "block-lab-zone-heading");
