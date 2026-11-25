@@ -43,7 +43,7 @@ aws secretsmanager get-secret-value --region us-east-1 \
   --query SecretString --output text
 ```
 
-First boot enables 4 GiB of swap on the encrypted root volume and builds images one at a time. On a later EC2 start, the LDL service starts the containers with their existing data and applies the current public IPv4 address. Check that address in the EC2 console after a stop and start.
+First boot enables 4 GiB of swap on the encrypted root volume and builds images one at a time. On a later EC2 start, the LDL service starts the containers with their existing data and applies the current public IPv4 address. Check that address in the EC2 console after a stop and start. The Control Center footer shows the successful build time in Korea Standard Time as `vYYYY.MM.DD.HH.MM`; a restart keeps that version because it reuses the existing images. A rebuild through `tools/install-guided-practice.sh --ec2` assigns a new version.
 
 Terraform creates the service roles for the P01-02 and P01-03 Knowledge Bases. Prepare their source buckets, vector buckets, and Knowledge Bases through the corresponding missions. Prepare the P02-01 managed Guardrail through its mission. The Gateway issues 15-minute sessions for the document and retrieval missions, scoped to the document or Knowledge Base used in the current execution.
 

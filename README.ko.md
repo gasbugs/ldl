@@ -41,9 +41,9 @@ aws secretsmanager get-secret-value --region us-east-1 \
   --query SecretString --output text
 ```
 
-첫 부팅은 암호화한 루트 볼륨에 4 GiB 스왑을 설정하고, 이미지 빌드 동시성을 1로 제한한다. 설치가 끝나면 LDL 사용자 서비스가 이후 EC2 시작 시 기존 데이터와 함께 컨테이너를 시작하고 새 공인 IPv4를 반영한다. EC2를 중지한 뒤 다시 시작한 경우 현재 공인 IPv4를 EC2 콘솔에서 확인해 접속 주소에 사용한다.
+첫 부팅은 암호화한 루트 볼륨에 4 GiB 스왑을 설정하고, 이미지 빌드 동시성을 1로 제한한다. 설치가 끝나면 LDL 사용자 서비스가 이후 EC2 시작 시 기존 데이터와 함께 컨테이너를 시작하고 새 공인 IPv4를 반영한다. EC2를 중지한 뒤 다시 시작한 경우 현재 공인 IPv4를 EC2 콘솔에서 확인해 접속 주소에 사용한다. Control Center 오른쪽 아래에는 성공한 빌드의 한국 시간 버전 `vYYYY.MM.DD.HH.MM`이 표시된다. EC2만 다시 시작하면 기존 image를 재사용하므로 버전도 유지된다. `tools/install-guided-practice.sh --ec2`로 다시 빌드하면 새 버전을 부여한다.
 
-부팅에 실패하면 시스템 로그에서 `LDL_BOOTSTRAP_FAILED` 앞의 오류를 확인한다. Terraform 상태 파일로 해당 AWS 계정의 자원을 관리한다. 첫 부팅은 [setup 저장소](https://github.com/gasbugs/owasp-llm-application-security-lab)의 LDL 런타임을 고정 Git 커밋에서 받는다. Terraform 코드는 이 저장소 루트에서 실행한다.
+부팅에 실패하면 시스템 로그에서 `LDL_BOOTSTRAP_FAILED` 앞의 오류를 확인한다. Terraform 상태 파일로 해당 AWS 계정의 자원을 관리한다. 첫 부팅은 [LDL 저장소](https://github.com/gasbugs/llm-defense-lab)의 부팅 시점 `main`을 복제한다. Terraform 코드는 이 저장소 루트에서 실행한다.
 
 EC2 역할은 Nova Lite 호출과 미션 전용 AWS 자원 준비에 필요한 권한을 갖는다. Terraform이 P01-02·03용 Knowledge Base 서비스 역할을 먼저 만들고, 실습 화면에서 원본 버킷·벡터 버킷·Knowledge Base 연결을 준비한다. P02-01의 관리형 Guardrail도 실습 화면에서 준비한다.
 

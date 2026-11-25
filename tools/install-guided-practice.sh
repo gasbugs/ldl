@@ -148,6 +148,10 @@ python3 "$SETUP_ROOT/tools/practice_preflight.py" \
   --root "$SETUP_ROOT" --env-file "$ENV_FILE" "${preflight_files[@]}"
 
 log "4/5" "실습 이미지를 Build하고 최신 이미지로 공통 플랫폼을 다시 생성합니다."
+# KST 빌드 시각을 image 태그와 화면 오른쪽 아래 버전에 함께 사용한다.
+# 재시작(--resume)은 이 경로를 지나지 않으므로 기존 배포 버전을 유지한다.
+release_version="$(TZ=Asia/Seoul date +v%Y.%m.%d.%H.%M)"
+export GUIDED_IMAGE_VERSION="$release_version"
 "$guided_compose" up -d --build --force-recreate --remove-orphans
 
 log "5/5" "설치 결과를 확인합니다."
@@ -167,6 +171,11 @@ if (( ${#stale_services[@]} > 0 )); then
   fail "최신 로컬 이미지를 사용하지 않는 서비스가 남았습니다: ${stale_services[*]}"
 fi
 
+# 빌드·image 대조가 끝난 버전만 저장한다. 실패한 빌드는 기존 버전을 유지한다.
+sed -i '/^GUIDED_IMAGE_VERSION=/d' "$ENV_FILE"
+printf 'GUIDED_IMAGE_VERSION=%s\n' "$release_version" >> "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
 # 블록 제출은 Docker socket을 UI에 노출하지 않고 WSL 사용자 서비스가 적용합니다.
 if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
   install -d -m 0700 "$HOME/.config/systemd/user"
@@ -180,7 +189,7 @@ else
   fail "블록 제출 뒤 자동 빌드에는 Ubuntu systemd 사용자 서비스가 필요합니다."
 fi
 
-printf '\n설치가 완료되었습니다.\n'
+printf '\n설치가 완료되었습니다. 버전: %s\n' "$release_version"
 if [[ "$ec2" == true ]]; then
   enable_ec2_autostart
   printf 'LDL 홈: http://%s:9010/\n' "$public_ip"

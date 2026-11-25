@@ -31,6 +31,15 @@ before_config=$(mktemp "$scratch/render.XXXXXXXX")
 after_config=$(mktemp "$scratch/render.XXXXXXXX")
 
 tools/guided-compose.sh config --format json > "$base_config"
+GUIDED_IMAGE_VERSION=v2026.11.25.12.34 tools/guided-compose.sh config --format json > "$scratch/version-config.json"
+python3 - "$scratch/version-config.json" <<'PY_VERSION'
+import json, sys
+services = json.load(open(sys.argv[1]))["services"]
+center = services["guided-control-center"]
+assert center["image"].endswith(":v2026.11.25.12.34")
+assert center["build"]["args"]["APP_VERSION"] == "v2026.11.25.12.34"
+assert center["environment"]["RELEASE_VERSION"] == "v2026.11.25.12.34"
+PY_VERSION
 for ip in 198.51.100.10 198.51.100.20; do
   python3 - "$new_ip_dir" "$ip" <<'PY'
 from ipaddress import IPv4Address
@@ -155,6 +164,7 @@ cat > "$scratch/bin/docker" <<'MOCK_DOCKER'
 #!/usr/bin/env bash
 set -eu
 printf '%s\n' "$*" >> "$LDL_CHECK_ROOT/docker.log"
+printf '%s\n' "${GUIDED_IMAGE_VERSION:-}" >> "$LDL_CHECK_ROOT/version.log"
 case " $* " in
   *' info '*) printf '{"MemTotal":1073741824}\n' ;;
   *' ps '*) exit 0 ;;
@@ -197,6 +207,7 @@ if [[ "$status" != 86 ]]; then
   exit 1
 fi
 grep -E 'compose .*compose.guided-ec2.yaml up -d --build' "$scratch/docker.log" >/dev/null
+grep -E '^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}$' "$scratch/version.log" >/dev/null
 grep -Fx 'GUIDED_EC2_PUBLIC_IP=198.51.100.10' "$new_ip_dir/public-ip.env" >/dev/null
 cp llm-security-control-plane/.state/guided-course.env "$scratch/course-env-before"
 PATH="$scratch/bin:$PATH" XDG_CONFIG_HOME="$scratch/config" LDL_CHECK_IP=198.51.100.20 \
