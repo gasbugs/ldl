@@ -2454,7 +2454,7 @@ async function runSettingsAction(action) {
       dialog.close();
       message = `이 실습이 소유한 AWS 자원 ${count}개만 삭제합니다. 풀이 코드·완료 기록·Docker 자원은 유지합니다. 계속할까요?`;
     } else {
-      message = "24개 미션의 완료 기록만 지웁니다. 풀이 코드·AWS·Docker 자원은 유지합니다. 계속할까요?";
+      message = "23개 미션의 완료 기록만 지웁니다. 풀이 코드·AWS·Docker 자원은 유지합니다. 계속할까요?";
     }
     if (!window.confirm(message)) { status.textContent = "취소했습니다."; return; }
     byId("settings-action-title").textContent = action === "aws" ? "AWS 실습 자원 삭제" : "완료 기록 초기화";

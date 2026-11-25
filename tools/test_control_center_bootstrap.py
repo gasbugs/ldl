@@ -55,6 +55,15 @@ class ControlCenterBootstrapTest(unittest.TestCase):
         self.assertIn("host.docker.internal:28198", proxy)
         self.assertIn('ThreadingHTTPServer(("0.0.0.0", 28198)', bridge)
 
+    def test_reset_scope_matches_active_practice_count(self):
+        scope = (ROOT / "tools" / "check-guided-reset-scope.py").read_text()
+        result = (ROOT / "tools" / "check-guided-reset-result.py").read_text()
+        manifest = (ROOT / "tools" / "guided-practice-files.tsv").read_text().splitlines()
+        active = [line for line in manifest if line and not line.startswith("#")]
+        self.assertEqual(23, len(active))
+        self.assertIn("EXPECTED_PRACTICE_FILES = 23", scope)
+        self.assertIn("if count != 23", result)
+
 
 if __name__ == "__main__":
     unittest.main()

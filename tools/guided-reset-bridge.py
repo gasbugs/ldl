@@ -60,7 +60,7 @@ def perform_reset(action="reset"):
             raise RuntimeError("초기화 명령은 끝났지만 사후 검증에 실패했습니다: " +
                                (verification.stderr or verification.stdout)[-1200:])
         with LOCK:
-            STATE.update(state="complete", detail="24개 Starter와 진행 기록·미션 자원 초기화 확인", percent=100)
+            STATE.update(state="complete", detail="23개 Starter와 진행 기록·미션 자원 초기화 확인", percent=100)
     except Exception as exc:
         with LOCK:
             STATE.update(state="failed", detail=str(exc)[-1200:])

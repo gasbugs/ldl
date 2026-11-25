@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECT = "llm-security-guided-course"
 MANIFEST = ROOT / "tools/guided-practice-files.tsv"
 WORKSPACE = Path.home() / "owasp-llm-practice"
+EXPECTED_PRACTICE_FILES = 23
 
 
 def command(*args):
@@ -35,8 +36,9 @@ def practice_files():
         command("git", "-C", str(ROOT), "cat-file", "-e",
                 f"HEAD:llm-security-control-plane/{source}")
         files.append({"mission": display_id, "path": str(path), "services": services.split(",")})
-    if len(files) != 24 or len({row["path"] for row in files}) != 24:
-        raise RuntimeError("24개 작업 파일 manifest가 예상과 다릅니다.")
+    if (len(files) != EXPECTED_PRACTICE_FILES
+            or len({row["path"] for row in files}) != EXPECTED_PRACTICE_FILES):
+        raise RuntimeError(f"{EXPECTED_PRACTICE_FILES}개 작업 파일 manifest가 예상과 다릅니다.")
     return files
 
 

@@ -58,7 +58,7 @@ def main():
               "p00_request_exists": p00.exists(),
               "reset_backups_remaining": [str(path) for path in backup]}
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    if count != 24 or mismatches or database != "0 0" or degraded or p00.exists() or backup:
+    if count != 23 or mismatches or database != "0 0" or degraded or p00.exists() or backup:
         raise SystemExit(1)
 
 
