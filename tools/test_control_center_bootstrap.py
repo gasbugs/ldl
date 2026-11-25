@@ -35,6 +35,15 @@ class ControlCenterBootstrapTest(unittest.TestCase):
         self.assertEqual([], [number for number in numbers if f"h{number}-verify" not in HTML_IDS])
         self.assertNotIn(16, numbers)
 
+    def test_block_preview_highlights_code_without_marker_comments(self):
+        script = (CONTROL_CENTER / "block-lab.js").read_text()
+        styles = (CONTROL_CENTER / "block-lab.css").read_text()
+        self.assertIn("function highlightSelectedBlocks", script)
+        self.assertIn("showBlockPreview(output", script)
+        self.assertIn("block-lab-code-highlight", styles)
+        self.assertNotIn("내가 조립한 코드 시작", script)
+        self.assertNotIn("내가 조립한 코드 끝", script)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -575,6 +575,60 @@ function showPython(pre, source, language = "python") {
   if (language === "python") highlightPythonBlocks(pre.parentElement || document);
 }
 
+const blockHighlightColors = 8;
+function blockHighlightClass(problem, id) {
+  let hash = 0;
+  for (const character of `${problem}:${id}`) hash = (hash * 31 + character.codePointAt(0)) >>> 0;
+  return `block-lab-color-${hash % blockHighlightColors}`;
+}
+
+function wrapTextRange(pre, start, end, className, label) {
+  const walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+  let offset = 0, startNode = null, endNode = null, startOffset = 0, endOffset = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const next = offset + node.data.length;
+    if (!startNode && start >= offset && start < next) {
+      startNode = node;
+      startOffset = start - offset;
+    }
+    if (end > offset && end <= next) {
+      endNode = node;
+      endOffset = end - offset;
+      break;
+    }
+    offset = next;
+  }
+  if (!startNode || !endNode) return;
+  const range = document.createRange();
+  range.setStart(startNode, startOffset);
+  range.setEnd(endNode, endOffset);
+  const highlight = make("mark", `block-lab-code-highlight ${className}`);
+  highlight.dataset.blockLabel = label;
+  highlight.title = `${label} 블록이 바꾼 코드`;
+  highlight.append(range.extractContents());
+  range.insertNode(highlight);
+}
+
+function highlightSelectedBlocks(pre, source, problem, orderedIds) {
+  const ranges = [];
+  for (const id of orderedIds) {
+    const code = blockCode(problem, id);
+    const start = source.indexOf(code);
+    if (start < 0) continue;
+    const block = BLOCK_LABS[problem].blocks.find(item => item.id === id);
+    ranges.push({start, end: start + code.length, id, label: block?.label || id});
+  }
+  for (const item of ranges.reverse()) {
+    wrapTextRange(pre, item.start, item.end, blockHighlightClass(problem, item.id), item.label);
+  }
+}
+
+function showBlockPreview(pre, source, problem, orderedIds, language = "python") {
+  showPython(pre, source, language);
+  highlightSelectedBlocks(pre, source, problem, orderedIds);
+}
+
 function labForCurrentMission() {
   const tab = document.querySelector("#tabs .tab.active");
   return tab?.id === "p00-menu" ? "P00" : tab?.dataset.problem || null;
@@ -853,7 +907,7 @@ function renderBlockLab() {
       const same = draft.order.filter(item => blockSlot(item) === slotName);
       const localIndex = same.indexOf(id);
       const workspace = workspaces.get(slotName).workspace;
-      const row = make("li", "block-lab-row"); row.dataset.block = id;
+      const row = make("li", `block-lab-row ${blockHighlightClass(problem, id)}`); row.dataset.block = id;
       const rowHead = make("div", "block-lab-row-head");
       const name = make("span", "", block.label);
       const up = make("button", "block-lab-small", "↑"); up.type = "button"; up.setAttribute("aria-label", `${block.label} 위로`);
@@ -911,27 +965,29 @@ function renderBlockLab() {
     } else if (problem === "P23") {
       const chosen = draft.order.map(id => blockCode(problem, id)).join("\n\n");
       const visible = chosen
-        ? `        # ▼ 내가 조립한 코드 시작\n${chosen}\n        # ▲ 내가 조립한 코드 끝`
-        : "        # ▼ 내 작업판 코드가 들어가는 자리\n        pass";
-      showPython(output, P23_FUNCTION_START + visible + P23_FUNCTION_END);
+        ? chosen
+        : "        pass";
+      const source = P23_FUNCTION_START + visible + P23_FUNCTION_END;
+      showBlockPreview(output, source, problem, draft.order);
     } else if (templateSource) {
       let preview = templateSource;
       for (const slot of slots) {
         const lines = draft.order.filter(id => blockSlot(id) === slot.id).map(id => blockCode(problem, id)).join("\n\n");
         const pad = " ".repeat(config.indents?.[slot.id] ?? (["if", "else", "cap", "call"].includes(slot.id) ? 8 : 4));
         const visible = problem === "P20" ? (lines || `${pad}# 내 작업판 코드가 들어가는 자리 · ${slot.label}`) : lines
-          ? `${pad}# ▼ 내가 조립한 코드 시작 · ${slot.label}\n${lines}\n${pad}# ▲ 내가 조립한 코드 끝`
+          ? lines
           : `${pad}# ▼ 내 작업판 코드가 들어가는 자리 · ${slot.label}${config.language === "yaml" ? "" : `\n${pad}pass`}`;
         preview = preview.replace(`__${slot.id.toUpperCase()}__`, visible);
       }
-      showPython(output, preview, config.language);
+      showBlockPreview(output, preview, problem, draft.order, config.language);
     } else {
-      showPython(output, draft.order.map(id => blockCode(problem, id)).join("\n\n") || "# 블록을 조립하면 코드가 여기에 나타납니다.");
+      const source = draft.order.map(id => blockCode(problem, id)).join("\n\n") || "# 블록을 조립하면 코드가 여기에 나타납니다.";
+      showBlockPreview(output, source, problem, draft.order);
     }
     status.textContent = `작업판에 ${draft.order.length}개 블록을 놓았습니다. ${problem === "P00" ? "JSON을 제출" : "코드를 적용하고 테스트"}해 실제 결과를 확인하세요.`;
   };
   for (const block of draft.palette) {
-    const card = make("div", "block-lab-palette-item");
+    const card = make("div", `block-lab-palette-item ${blockHighlightClass(problem, block.id)}`);
     card.dataset.block = block.id;
     const button = make("button", "block-lab-block", block.label); button.type = "button"; button.dataset.block = block.id;
     enableDrag(card, block.id);

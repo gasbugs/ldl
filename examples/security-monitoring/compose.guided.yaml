@@ -68,7 +68,7 @@ services:
       - ${GUIDED_P20_DASHBOARD_FILE:-${HOME}/owasp-llm-practice/P06-04_dashboard.json}:/block-work/P06-04_dashboard.json:rw
       - ${GUIDED_P21_LEARNER_FILE:-${HOME}/owasp-llm-practice/P07-01_policy.py}:/block-work/P07-01_policy.py:rw
       - ${GUIDED_P22_LEARNER_FILE:-${HOME}/owasp-llm-practice/P07-02_server.py}:/block-work/P07-02_server.py:rw
-      - ${HOME}/owasp-llm-lab-setup-guide/.state/block-build-jobs:/block-build-jobs:rw
+      - ${GUIDED_BLOCK_BUILD_JOBS_DIR:-../../.state/block-build-jobs}:/block-build-jobs:rw
     environment:
       GUIDED_PROGRESS_DATABASE: /state/progress.sqlite3
       RELEASE_VERSION: ${GUIDED_IMAGE_VERSION:-0.1.0}
