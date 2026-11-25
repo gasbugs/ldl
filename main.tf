@@ -49,6 +49,15 @@ data "aws_vpc" "default" {
   default = true
 }
 
+data "aws_ec2_instance_type_offerings" "ldl" {
+  filter {
+    name   = "instance-type"
+    values = ["m6a.large"]
+  }
+
+  location_type = "availability-zone"
+}
+
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
@@ -57,6 +66,10 @@ data "aws_subnets" "default" {
   filter {
     name   = "default-for-az"
     values = ["true"]
+  }
+  filter {
+    name   = "availability-zone"
+    values = data.aws_ec2_instance_type_offerings.ldl.locations
   }
 }
 
