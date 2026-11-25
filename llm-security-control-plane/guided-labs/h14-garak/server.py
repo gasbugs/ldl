@@ -33,7 +33,7 @@ def run(body: dict, authorization: str | None = Header(None)):
     prefix = STATE / suite
     options = STATE / f"{suite}-generator.json"
     options.write_text(Path('/work/rest-generator.json').read_text().replace('$H14_TOKEN', os.environ['GUIDED_H14_TARGET_TOKEN']), encoding='utf-8')
-    command = ["python", "-m", "garak", "--model_type", "rest", "--model_name", "RestGenerator", "--generator_option_file", str(options), "--probes", "encoding.InjectBase64", "--detectors", "always.Pass", "--generations", "1", "--config", "/work/garak-config.yaml", "--report_prefix", str(prefix)]
+    command = ["python", "-m", "garak", "--target_type", "rest", "--generator_option_file", str(options), "--probes", "encoding.InjectBase64", "--detectors", "always.Pass", "--generations", "1", "--config", "/work/garak-config.yaml", "--report_prefix", str(prefix)]
     completed = subprocess.run(command, text=True, capture_output=True, timeout=90, check=False)
     reports = sorted(STATE.glob(f"{suite}*.report.jsonl"))
     raw = reports[0].read_bytes() if reports else b""
