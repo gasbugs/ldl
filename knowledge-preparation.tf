@@ -59,7 +59,7 @@ resource "aws_iam_role_policy" "course_preparation" {
       },
       {
         Effect    = "Allow"
-        Action    = "iam:CreateRole"
+        Action    = ["iam:CreateRole", "iam:TagRole"]
         Resource  = [for role in aws_iam_role.knowledge_source : role.arn]
         Condition = { StringEquals = local.request_owners }
       },
