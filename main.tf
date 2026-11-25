@@ -129,6 +129,12 @@ resource "aws_iam_instance_profile" "ldl" {
   role = aws_iam_role.ldl.name
 }
 
+# Keep the keyless EC2 deployment manageable for scoped diagnostics and updates.
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance" {
+  role       = aws_iam_role.ldl.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_secretsmanager_secret" "grafana" {
   name_prefix             = "owasp-llm-ldl/grafana-logins-"
   recovery_window_in_days = 0
@@ -174,7 +180,7 @@ resource "aws_instance" "ldl" {
     tags                  = { Name = "owasp-llm-ldl" }
   }
 
-  depends_on = [aws_iam_role_policy.model, aws_iam_role_policy.publish_grafana, aws_iam_role_policy.learner_session, aws_iam_role_policy.knowledge_source, aws_iam_role_policy.course_preparation]
+  depends_on = [aws_iam_role_policy.model, aws_iam_role_policy.publish_grafana, aws_iam_role_policy.learner_session, aws_iam_role_policy.knowledge_source, aws_iam_role_policy.course_preparation, aws_iam_role_policy_attachment.ssm_managed_instance]
 }
 
 output "ldl_url" {

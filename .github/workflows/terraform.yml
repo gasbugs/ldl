@@ -25,3 +25,4 @@ jobs:
       - run: terraform validate
       - run: terraform test
       - run: python3 tools/test_browser_port_contract.py
+      - run: python3 tools/test_control_center_bootstrap.py

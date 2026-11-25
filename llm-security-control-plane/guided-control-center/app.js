@@ -2156,7 +2156,7 @@ byId("h10-verify").addEventListener("click", () => execute("/api/practice/P10/ve
 byId("h11-verify").addEventListener("click", () => execute("/api/practice/P11/verify"));
 byId("h12-verify").addEventListener("click", () => execute("/api/practice/P12/verify"));
 byId("h13-verify").addEventListener("click", () => execute("/api/practice/P13/verify"));
-for (let number = 14; number <= 20; number += 1) byId(`h${number}-verify`).addEventListener("click", () => execute(`/api/practice/P${number}/verify`));
+for (const number of [14, 15, 17, 18, 19, 20]) byId(`h${number}-verify`).addEventListener("click", () => execute(`/api/practice/P${number}/verify`));
 byId("h21-verify").addEventListener("click", () => execute("/api/practice/P21/verify"));
 byId("h22-verify").addEventListener("click", () => execute("/api/practice/P22/verify"));
 byId("chat-form").addEventListener("submit", sendChat);
