@@ -34,17 +34,6 @@ variable "learner_ipv4_cidr" {
   }
 }
 
-variable "setup_revision" {
-  description = "Verified public setup repository commit to install."
-  type        = string
-  default     = "1b6bced490c8e1b50af6017e0bf34d6ec45fb3df"
-
-  validation {
-    condition     = can(regex("^[0-9a-f]{40}$", var.setup_revision))
-    error_message = "Use the full 40-character Git commit SHA."
-  }
-}
-
 data "aws_vpc" "default" {
   default = true
 }
@@ -166,7 +155,6 @@ resource "aws_instance" "ldl" {
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.ldl.name
   user_data = templatefile("${path.module}/user-data.sh.tftpl", {
-    setup_revision   = var.setup_revision
     grafana_secret   = aws_secretsmanager_secret.grafana.arn
     learner_role_arn = aws_iam_role.learner_session.arn
   })
