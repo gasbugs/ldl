@@ -575,11 +575,18 @@ function showPython(pre, source, language = "python") {
   if (language === "python") highlightPythonBlocks(pre.parentElement || document);
 }
 
-const blockHighlightColors = 8;
-function blockHighlightClass(problem, id) {
-  let hash = 0;
-  for (const character of `${problem}:${id}`) hash = (hash * 31 + character.codePointAt(0)) >>> 0;
-  return `block-lab-color-${hash % blockHighlightColors}`;
+const sectionHighlightColors = 6;
+function blockSection(problem, id) {
+  const config = BLOCK_LABS[problem];
+  const block = config.blocks.find(item => item.id === id);
+  return config.freeSlots
+    ? (currentDraft(problem).slots[id] || config.slots[0].id)
+    : (block?.slot || config.slots?.[0]?.id || "main");
+}
+function sectionHighlightClass(problem, section) {
+  const sections = BLOCK_LABS[problem].slots || [{id: "main"}];
+  const index = Math.max(0, sections.findIndex(item => item.id === section));
+  return `block-lab-color-${index % sectionHighlightColors}`;
 }
 
 function wrapTextRange(pre, start, end, className, label) {
@@ -620,7 +627,7 @@ function highlightSelectedBlocks(pre, source, problem, orderedIds) {
     ranges.push({start, end: start + code.length, id, label: block?.label || id});
   }
   for (const item of ranges.reverse()) {
-    wrapTextRange(pre, item.start, item.end, blockHighlightClass(problem, item.id), item.label);
+    wrapTextRange(pre, item.start, item.end, sectionHighlightClass(problem, blockSection(problem, item.id)), item.label);
   }
 }
 
@@ -907,7 +914,7 @@ function renderBlockLab() {
       const same = draft.order.filter(item => blockSlot(item) === slotName);
       const localIndex = same.indexOf(id);
       const workspace = workspaces.get(slotName).workspace;
-      const row = make("li", `block-lab-row ${blockHighlightClass(problem, id)}`); row.dataset.block = id;
+      const row = make("li", `block-lab-row ${sectionHighlightClass(problem, slotName)}`); row.dataset.block = id;
       const rowHead = make("div", "block-lab-row-head");
       const name = make("span", "", block.label);
       const up = make("button", "block-lab-small", "↑"); up.type = "button"; up.setAttribute("aria-label", `${block.label} 위로`);
@@ -987,7 +994,7 @@ function renderBlockLab() {
     status.textContent = `작업판에 ${draft.order.length}개 블록을 놓았습니다. ${problem === "P00" ? "JSON을 제출" : "코드를 적용하고 테스트"}해 실제 결과를 확인하세요.`;
   };
   for (const block of draft.palette) {
-    const card = make("div", `block-lab-palette-item ${blockHighlightClass(problem, block.id)}`);
+    const card = make("div", `block-lab-palette-item ${sectionHighlightClass(problem, block.slot || slots[0].id)}`);
     card.dataset.block = block.id;
     const button = make("button", "block-lab-block", block.label); button.type = "button"; button.dataset.block = block.id;
     enableDrag(card, block.id);

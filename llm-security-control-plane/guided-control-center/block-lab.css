@@ -20,14 +20,12 @@
 .block-lab-palette-item .block-lab-block{display:block;width:100%;border-radius:9px 9px 0 0;box-shadow:none}
 .block-lab-block-code{margin:0;padding:.65rem .75rem;max-height:8rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;width:100%;background:#11263e;color:#e5f4ff;font:500 .77rem/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4}
 .block-lab-block,.block-lab-row{border:1px solid #285ea4;border-left:8px solid #f0ad32;border-radius:10px;background:#2875d0;color:#fff;box-shadow:0 2px 0 #18467f;font-weight:700;text-align:left}
-.block-lab-color-0{--block-color:#f59e0b}
-.block-lab-color-1{--block-color:#ef4444}
+.block-lab-color-0{--block-color:#3b82f6}
+.block-lab-color-1{--block-color:#14b8a6}
 .block-lab-color-2{--block-color:#8b5cf6}
-.block-lab-color-3{--block-color:#06b6d4}
-.block-lab-color-4{--block-color:#22c55e}
-.block-lab-color-5{--block-color:#ec4899}
-.block-lab-color-6{--block-color:#3b82f6}
-.block-lab-color-7{--block-color:#a16207}
+.block-lab-color-3{--block-color:#d97706}
+.block-lab-color-4{--block-color:#64748b}
+.block-lab-color-5{--block-color:#0f766e}
 .block-lab-palette-item[class*="block-lab-color-"],.block-lab-row[class*="block-lab-color-"]{border-left-color:var(--block-color)}
 .block-lab-code-highlight{display:inline;padding:0 .12rem;border-left:3px solid var(--block-color);background:color-mix(in srgb,var(--block-color) 24%,transparent);color:inherit}
 .block-lab-code-highlight::selection{background:var(--block-color);color:#07111f}
