@@ -57,6 +57,29 @@ def wait_absent(fetch, *, sleep=time.sleep, attempts=60):
     raise HTTPException(502, "AWS resource deletion is not yet confirmed")
 
 
+def wait_list_absent(fetch, field, key, value, *, sleep=time.sleep, attempts=60):
+    """Confirm deletion through list APIs that remain authorized after tags disappear."""
+    for _ in range(attempts):
+        rows, token, seen = [], None, set()
+        for _page in range(100):
+            arguments = {"maxResults": 100}
+            if token:
+                arguments["nextToken"] = token
+            response = fetch(**arguments)
+            rows.extend(response.get(field, []))
+            token = response.get("nextToken")
+            if not token:
+                break
+            require(token not in seen, "AWS deletion listing repeated a page token")
+            seen.add(token)
+        else:
+            raise HTTPException(502, "AWS deletion listing exceeded the page bound")
+        if all(row.get(key) != value for row in rows):
+            return
+        sleep(1)
+    raise HTTPException(502, "AWS resource deletion is not yet confirmed")
+
+
 def cleanup_storage(specification, audit, sdk, *, problem, sleep=time.sleep):
     """Audit the whole namespace before the first destructive API call."""
     t = specification
@@ -93,7 +116,8 @@ def cleanup_storage(specification, audit, sdk, *, problem, sleep=time.sleep):
     wait_absent(lambda: agent.get_data_source(**ids), sleep=sleep)
     step(3)
     agent.delete_knowledge_base(knowledgeBaseId=ids["knowledgeBaseId"])
-    wait_absent(lambda: agent.get_knowledge_base(knowledgeBaseId=ids["knowledgeBaseId"]), sleep=sleep)
+    wait_list_absent(agent.list_knowledge_bases, "knowledgeBaseSummaries", "knowledgeBaseId",
+                     ids["knowledgeBaseId"], sleep=sleep)
     step(4)
     for key in objects:
         s3.delete_object(**source, Key=key)
@@ -163,7 +187,7 @@ def delete_resources(problem, operation_id, database, *, p02_template, p02_state
                         "Guardrail has versions outside this mission deletion")
                 step(2)
                 sdk["bedrock"].delete_guardrail(guardrailIdentifier=identifier)
-                wait_absent(lambda: sdk["bedrock"].get_guardrail(guardrailIdentifier=identifier, guardrailVersion="DRAFT"))
+                wait_list_absent(sdk["bedrock"].list_guardrails, "guardrails", "id", identifier)
                 removed = [identifier]
         step(3 if problem == "P04" else 8)
         with sqlite3.connect(database) as db:
