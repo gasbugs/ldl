@@ -5,7 +5,7 @@ set -euo pipefail
 # 두 번째 노트에서는 EC2 역할에 주는 Bedrock 모델/Knowledge Base 조회 권한만 반영한다.
 
 AWS_REGION=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
-AWS_PROFILE_NAME=${AWS_PROFILE_NAME:-${AWS_PROFILE:-owasp-llm-cpu-lab}}
+AWS_PROFILE_NAME=${AWS_PROFILE_NAME:-owasp-llm-cpu-lab}
 PROJECT_TAG=${PROJECT_TAG:-awsw-preserve-t3-micro}
 LAB_NAME=${LAB_NAME:-owasp-llm-cpu-lab}
 LAB_ROLE=${LAB_ROLE:-owasp-llm-bedrock-ec2}
@@ -17,8 +17,9 @@ usage() {
   cat <<'EOF'
 usage: restore-course-ec2.sh [--profile PROFILE] [--knowledge-base-id ID]
 
-Restores or creates the course EC2 instance in us-east-1. The script also grants
-Nova Lite and Titan Embed model access to the EC2 role. If a Knowledge Base ID
+Signs in with the selected AWS profile when needed, restores or creates the course
+EC2 instance, and installs Docker Engine, Compose, and AWS CLI over SSH. The script
+also grants Nova Lite and Titan Embed access to the EC2 role. If a Knowledge Base ID
 is supplied, it grants read/retrieve access to that Knowledge Base only.
 EOF
 }
@@ -46,7 +47,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-for command in aws curl ssh-keygen; do
+for command in aws curl ssh ssh-keygen; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "required command missing: $command" >&2
     exit 1
@@ -57,6 +58,11 @@ export AWS_PAGER=""
 export AWS_REGION AWS_DEFAULT_REGION="$AWS_REGION"
 AWS=(aws --profile "$AWS_PROFILE_NAME" --region "$AWS_REGION")
 
+# 기존 세션이 유효하면 재사용하고, 만료됐을 때만 브라우저 로그인을 연다.
+if ! "${AWS[@]}" sts get-caller-identity >/dev/null 2>&1; then
+  printf 'AWS profile %s needs sign-in. Complete the browser approval shown below.\n' "$AWS_PROFILE_NAME"
+  aws login --profile "$AWS_PROFILE_NAME" --region "$AWS_REGION" --remote
+fi
 ACCOUNT_ID="$("${AWS[@]}" sts get-caller-identity --query Account --output text)"
 CALLER_ARN="$("${AWS[@]}" sts get-caller-identity --query Arn --output text)"
 printf 'AWS account=%s region=%s caller=%s\n' "$ACCOUNT_ID" "$AWS_REGION" "$CALLER_ARN"
@@ -64,8 +70,8 @@ printf 'AWS account=%s region=%s caller=%s\n' "$ACCOUNT_ID" "$AWS_REGION" "$CALL
 trust_policy="$(mktemp)"
 model_policy="$(mktemp)"
 kb_policy="$(mktemp)"
-user_data="$(mktemp)"
-cleanup() { rm -f -- "$trust_policy" "$model_policy" "$kb_policy" "$user_data"; }
+docker_bootstrap="$(mktemp)"
+cleanup() { rm -f -- "$trust_policy" "$model_policy" "$kb_policy" "$docker_bootstrap"; }
 trap cleanup EXIT
 
 cat >"$trust_policy" <<'JSON'
@@ -230,23 +236,6 @@ if [ "$INSTANCE_ID" = None ]; then
       Name=architecture,Values=x86_64 Name=state,Values=available \
     --query 'sort_by(Images, &CreationDate)[-1].ImageId' --output text)"
 
-  cat >"$user_data" <<'USERDATA'
-#!/usr/bin/env bash
-set -euxo pipefail
-apt-get update
-apt-get install -y ca-certificates curl unzip
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-chmod a+r /etc/apt/keyrings/docker.asc
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" >/etc/apt/sources.list.d/docker.list
-apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-usermod -aG docker ubuntu
-curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip
-unzip -q /tmp/awscliv2.zip -d /tmp
-/tmp/aws/install
-USERDATA
-
   # 새 instance profile이 EC2 제어면에 전파될 시간을 준다.
   sleep 10
 
@@ -256,7 +245,6 @@ USERDATA
     --network-interfaces "DeviceIndex=0,SubnetId=$SUBNET_ID,Groups=[$SG_ID],AssociatePublicIpAddress=true" \
     --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3,Encrypted=true,DeleteOnTermination=true}' \
     --metadata-options 'HttpTokens=required,HttpPutResponseHopLimit=2,HttpEndpoint=enabled' \
-    --user-data "file://$user_data" \
     --tag-specifications \
       "ResourceType=instance,Tags=[{Key=Name,Value=$LAB_NAME},{Key=Project,Value=$PROJECT_TAG}]" \
       "ResourceType=volume,Tags=[{Key=Name,Value=$LAB_NAME},{Key=Project,Value=$PROJECT_TAG}]" \
@@ -277,6 +265,60 @@ fi
 PUBLIC_IP="$("${AWS[@]}" ec2 describe-instances --instance-ids "$INSTANCE_ID" \
   --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
 
-printf '\nEC2 restored: instance=%s public_ip=%s\n' "$INSTANCE_ID" "$PUBLIC_IP"
+[ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != None ] || {
+  echo "EC2 has no public IPv4 address: $INSTANCE_ID" >&2
+  exit 1
+}
+
+# 새 인스턴스와 기존 인스턴스에 동일한 멱등 부트스트랩을 적용한다.
+cat >"$docker_bootstrap" <<'BOOTSTRAP'
+#!/usr/bin/env bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y ca-certificates curl unzip
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+  . /etc/os-release
+  printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\n' \
+    "$(dpkg --print-architecture)" "$VERSION_CODENAME" > /etc/apt/sources.list.d/docker.list
+  apt-get update
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+fi
+systemctl enable --now docker
+usermod -aG docker ubuntu
+
+if ! command -v aws >/dev/null 2>&1; then
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf -- "$temp_dir"' EXIT
+  curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o "$temp_dir/awscliv2.zip"
+  unzip -q "$temp_dir/awscliv2.zip" -d "$temp_dir"
+  "$temp_dir/aws/install"
+fi
+BOOTSTRAP
+
+ssh_options=(-i "$KEY_FILE" -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
+ssh_target="ubuntu@$PUBLIC_IP"
+printf 'EC2 running: instance=%s public_ip=%s; waiting for SSH\n' "$INSTANCE_ID" "$PUBLIC_IP"
+ssh_ready=false
+for attempt in {1..30}; do
+  if ssh "${ssh_options[@]}" "$ssh_target" true >/dev/null 2>&1; then
+    ssh_ready=true
+    break
+  fi
+  sleep 5
+done
+[ "$ssh_ready" = true ] || { echo "SSH unavailable after 150 seconds: $ssh_target" >&2; exit 1; }
+
+# Cloud-init가 apt 잠금을 놓은 뒤, SSH를 통해 설치한다.
+ssh "${ssh_options[@]}" "$ssh_target" 'timeout 900 sudo cloud-init status --wait >/dev/null'
+ssh "${ssh_options[@]}" "$ssh_target" 'sudo bash -s' <"$docker_bootstrap"
+
+# 새 SSH 세션에서 docker 그룹이 반영됐는지 일반 사용자 권한으로 확인한다.
+ssh "${ssh_options[@]}" "$ssh_target" \
+  "docker version && docker compose version && aws sts get-caller-identity --region '$AWS_REGION' --query Arn --output text"
+printf '\nEC2 ready: instance=%s public_ip=%s\n' "$INSTANCE_ID" "$PUBLIC_IP"
 printf 'SSH: ssh -i %q ubuntu@%s\n' "$KEY_FILE" "$PUBLIC_IP"
-printf 'After cloud-init: docker version && docker compose version && aws sts get-caller-identity --region %s\n' "$AWS_REGION"
