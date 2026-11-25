@@ -102,10 +102,10 @@ print("WSL loopback, EC2 ports and IP rotation, Grafana cookies, role isolation,
 PY
 root="$PWD/llm-security-control-plane"
 image=docker.io/nginxinc/nginx-unprivileged:1.29.1-alpine
-docker run --rm --entrypoint nginx --tmpfs /tmp --tmpfs /var/cache/nginx:uid=101,gid=101,mode=0700 \
+docker run --rm --entrypoint nginx --add-host host.docker.internal:host-gateway --tmpfs /tmp --tmpfs /var/cache/nginx:uid=101,gid=101,mode=0700 \
   --mount "type=bind,src=$root/guided-front-proxy/nginx.conf,dst=/etc/nginx/nginx.conf,readonly" \
   "$image" -t
-docker run --rm --entrypoint nginx --tmpfs /tmp --tmpfs /var/cache/nginx:uid=101,gid=101,mode=0700 \
+docker run --rm --entrypoint nginx --add-host host.docker.internal:host-gateway --tmpfs /tmp --tmpfs /var/cache/nginx:uid=101,gid=101,mode=0700 \
   --mount "type=bind,src=$root/guided-front-proxy/nginx.conf,dst=/etc/nginx/nginx.conf,readonly" \
   --mount "type=bind,src=$root/.state/guided-ec2/hosts,dst=/etc/nginx/guided-ec2/hosts,readonly" \
   --mount "type=bind,src=$root/guided-front-proxy/ec2-viewers.conf,dst=/etc/nginx/guided-ec2/servers/viewers.conf,readonly" \
@@ -113,7 +113,7 @@ docker run --rm --entrypoint nginx --tmpfs /tmp --tmpfs /var/cache/nginx:uid=101
 
 
 test_name="ldl-ec2-port-check-$$"
-docker run -d --name "$test_name" --entrypoint nginx --read-only --tmpfs /tmp \
+docker run -d --name "$test_name" --entrypoint nginx --add-host host.docker.internal:host-gateway --read-only --tmpfs /tmp \
   --tmpfs /var/cache/nginx:uid=101,gid=101,mode=0700 \
   -p 127.0.0.1::18097 -p 127.0.0.1::19014 -p 127.0.0.1::19015 \
   --mount "type=bind,src=$root/guided-front-proxy/nginx.conf,dst=/etc/nginx/nginx.conf,readonly" \
