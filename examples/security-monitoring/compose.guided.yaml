@@ -22,6 +22,8 @@ services:
       dockerfile: guided-front-proxy/Containerfile
     image: localhost/llm-security-guided-front-proxy:${GUIDED_IMAGE_VERSION:-0.1.0}
     container_name: llm-security-guided-front-proxy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       guided-control-center: {condition: service_healthy}
     ports:

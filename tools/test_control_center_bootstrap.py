@@ -45,6 +45,16 @@ class ControlCenterBootstrapTest(unittest.TestCase):
         self.assertNotIn("내가 조립한 코드 끝", script)
         self.assertRegex(script, r'P03:\s*\{\s*title: "동기화 확인·검색 조립",\s*freeSlots: true,')
 
+    def test_reset_actions_use_same_origin_proxy(self):
+        script = (CONTROL_CENTER / "app.js").read_text()
+        proxy = (CONTROL_CENTER.parent / "guided-front-proxy" / "nginx.conf").read_text()
+        bridge = (ROOT / "tools" / "guided-reset-bridge.py").read_text()
+        self.assertEqual(3, script.count('const endpoint = "/reset-bridge";'))
+        self.assertNotIn("28198", script)
+        self.assertIn("location /reset-bridge/", proxy)
+        self.assertIn("host.docker.internal:28198", proxy)
+        self.assertIn('ThreadingHTTPServer(("0.0.0.0", 28198)', bridge)
+
 
 if __name__ == "__main__":
     unittest.main()

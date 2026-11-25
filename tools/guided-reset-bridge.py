@@ -157,4 +157,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", 28198), Handler).serve_forever()
+    # Docker front proxy가 host-gateway를 통해 접근한다. AWS 보안 그룹은 이
+    # 포트를 외부에 열지 않고, Handler는 허용 Origin과 고정 명령만 받는다.
+    ThreadingHTTPServer(("0.0.0.0", 28198), Handler).serve_forever()

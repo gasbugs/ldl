@@ -2259,8 +2259,7 @@ byId("breadcrumb-category").addEventListener("click", () => {
 byId("breadcrumb-home").addEventListener("click", () => selectWorkspace("home"));
 byId("navigation-home").addEventListener("click", () => selectWorkspace("home"));
 async function restoreRunningReset() {
-  const endpoint = location.hostname === "book-neb4p1e6db.tail36e6cc.ts.net"
-    ? "https://book-neb4p1e6db.tail36e6cc.ts.net:28198" : "http://127.0.0.1:28198";
+  const endpoint = "/reset-bridge";
   let response;
   try { response = await fetch(`${endpoint}/status`, {cache: "no-store"}); }
   catch { return; }
@@ -2357,8 +2356,7 @@ byId("practice-reset-button").addEventListener("click", async () => {
   const runningDialog = byId("practice-reset-running");
   const runningDetail = byId("practice-reset-running-detail");
   const preventResetDismiss = event => event.preventDefault();
-  const endpoint = location.hostname === "book-neb4p1e6db.tail36e6cc.ts.net"
-    ? "https://book-neb4p1e6db.tail36e6cc.ts.net:28198" : "http://127.0.0.1:28198";
+  const endpoint = "/reset-bridge";
   button.disabled = true;
   try {
     const dialog = byId("practice-reset-confirm");
@@ -2433,8 +2431,7 @@ document.addEventListener("keydown", event => {
 async function runSettingsAction(action) {
   const status = byId("practice-reset-status");
   const button = byId(action === "aws" ? "settings-aws-delete" : "settings-progress-reset");
-  const endpoint = location.hostname === "book-neb4p1e6db.tail36e6cc.ts.net"
-    ? "https://book-neb4p1e6db.tail36e6cc.ts.net:28198" : "http://127.0.0.1:28198";
+  const endpoint = "/reset-bridge";
   const dialog = byId("settings-action-running");
   const detail = byId("settings-action-detail");
   const bar = byId("settings-action-progress");
