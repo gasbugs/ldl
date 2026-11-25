@@ -16,8 +16,10 @@ def command(*args):
 
 
 def aws(service, operation, *args):
-    return json.loads(command("aws", service, operation, "--profile", "default",
-                              "--region", "us-east-1", *args, "--output", "json"))
+    # WSL에서는 AWS CLI의 default chain이 default profile을, EC2에서는
+    # instance profile을 선택한다. 특정 profile을 강제하면 EC2 삭제가 막힌다.
+    return json.loads(command("aws", service, operation, "--region", "us-east-1",
+                              *args, "--output", "json"))
 
 
 def practice_files():

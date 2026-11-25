@@ -62,6 +62,7 @@ class ControlCenterBootstrapTest(unittest.TestCase):
         active = [line for line in manifest if line and not line.startswith("#")]
         self.assertEqual(23, len(active))
         self.assertIn("EXPECTED_PRACTICE_FILES = 23", scope)
+        self.assertNotIn('"--profile", "default"', scope)
         self.assertIn("if count != 23", result)
 
 
