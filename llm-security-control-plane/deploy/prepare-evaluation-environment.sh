@@ -231,7 +231,10 @@ else
   BACKUP_DIR="없음 (기존 .state 없음)"
 fi
 RESET_STARTED=true
-mkdir -p "$ROOT/.state/application-auth"
+mkdir -p "$ROOT/.state/bedrock-gateway" "$ROOT/.state/application-auth"
+# 두 서비스 모두 LOCAL_UID·LOCAL_GID로 실행하므로 host bind mount도 같은 사용자가 소유한다.
+chown -R "$(id -u):$(id -g)" "$ROOT/.state/bedrock-gateway" "$ROOT/.state/application-auth"
+chmod 0700 "$ROOT/.state/bedrock-gateway" "$ROOT/.state/application-auth"
 mv "$ENV_FILE" "$ROOT/.state/module08-compose.env"
 ENV_FILE="$ROOT/.state/module08-compose.env"
 if [ -f "$PREPARATION_DIR/aws/module08-aws.env" ]; then

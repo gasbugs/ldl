@@ -26,6 +26,20 @@ def compose(relative):
 
 
 class BrowserPortContract(unittest.TestCase):
+    def test_non_root_services_have_writable_state_mounts(self):
+        services = compose("llm-security-control-plane/compose.yaml")
+        expected = {
+            "bedrock-gateway": ("/app/state", ".state/bedrock-gateway"),
+            "application": ("/app/state", ".state/application-auth"),
+        }
+        for name, (target, source_suffix) in expected.items():
+            volumes = services[name].get("volumes", [])
+            mount = next((item for item in volumes if item.get("target") == target), None)
+            self.assertIsNotNone(mount, name)
+            self.assertEqual(mount.get("type"), "bind", name)
+            self.assertTrue(mount.get("source", "").endswith(source_suffix), name)
+            self.assertFalse(mount.get("read_only", False), name)
+
     def test_application_is_the_only_public_control_plane_service(self):
         services = compose("llm-security-control-plane/compose.yaml")
         self.assertNotIn("build", services["bedrock-gateway"])

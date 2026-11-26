@@ -26,6 +26,8 @@ services:
       RELEASE_VERSION: ${IMAGE_VERSION:-1.0.0}
     volumes:
       - "${AWS_CREDENTIALS_DIR:-${HOME}/.aws}:/tmp/.aws:ro"
+      # Gateway가 회전 키를 non-root UID로 보존한다.
+      - "./.state/bedrock-gateway:/app/state:rw"
 
   presidio:
     container_name: llm-security-presidio-spoke
