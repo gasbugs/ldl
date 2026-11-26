@@ -46,6 +46,8 @@ class BrowserPortContract(unittest.TestCase):
         self.assertIn("AWS_EC2_METADATA_DISABLED=false", script)
         self.assertIn("USE_EC2_INSTANCE_ROLE=$USE_EC2_INSTANCE_ROLE", script)
         self.assertIn('mkdir -p "$ROOT/.state/bedrock-gateway"', script)
+        self.assertIn("module08-compose.env module08-aws.env module10-compose.env", script)
+        self.assertNotIn('mv "$ROOT/.state" "$BACKUP_DIR"', script)
 
     def test_application_is_the_only_public_control_plane_service(self):
         services = compose("llm-security-control-plane/compose.yaml")

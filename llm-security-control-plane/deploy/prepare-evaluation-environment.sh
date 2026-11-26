@@ -14,7 +14,7 @@ while [ "$#" -gt 0 ]; do
       shift 2 ;;
     --help)
       echo 'Usage: bash prepare-evaluation-environment.sh [--knowledge-base-id ID]'
-      echo 'Builds four services, removes the six named lab containers, backs up .state, and creates fresh tokens.'
+      echo 'Builds four services, removes the six named lab containers, backs up control-plane state, and creates fresh tokens.'
       echo 'Keeps ~/.aws and learner work files; ensures the lab Knowledge Base when no ID is supplied.'
       exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -86,7 +86,7 @@ printf '평가 환경을 새로 준비합니다. 아래 컨테이너가 있으�
 printf '삭제 조건: llm-security-control-plane network 소속이며 아래 이름에 일치하는 컨테이너만 대상입니다.\n'
 printf '  llm-security-application-gateway\n  llm-security-nemo-hub\n  llm-security-presidio-spoke\n  llm-security-bedrock-gateway\n  llm-security-nemo-dialog-rails\n  guardrails-presidio-api\n'
 printf '컨테이너 내부에서만 수정한 파일은 삭제됩니다.\n'
-printf '기존 상태: %s/.state → setup 루트 .state/control-plane-backup-날짜로 백업\n' "$ROOT"
+printf '기존 제어면 상태만 setup 루트 .state/control-plane-backup-날짜로 백업합니다. guided 상태는 유지합니다.\n'
 printf '초기 모드: detection — NeMo·Presidio로 검사하되 탐지 결과로 차단하지 않습니다. 로그인·권한 검사는 유지합니다.\n'
 printf '서비스 Token·로그인 상태는 새로 생성합니다. 이전 JWT는 사용할 수 없습니다.\n'
 printf '~/.aws·작업 파일·이미지·network는 유지합니다. 실습 Knowledge Base는 재사용하거나 생성·복구합니다.\n'
@@ -243,14 +243,23 @@ for container in llm-security-application-gateway llm-security-nemo-hub \
   fi
 done
 
-stage 6 '기존 .state 백업·새 인증 상태 적용'
-if [ -e "$ROOT/.state" ]; then
-  RESET_STARTED=true
-  BACKUP_DIR="$ROOT/../.state/control-plane-backup-$(date +%Y%m%d-%H%M%S-%N)"
-  mv "$ROOT/.state" "$BACKUP_DIR"
-  printf 'previous-state-backup=%s\n' "$BACKUP_DIR"
+stage 6 '기존 제어면 상태 백업·새 인증 상태 적용'
+BACKUP_DIR="$ROOT/../.state/control-plane-backup-$(date +%Y%m%d-%H%M%S-%N)"
+mkdir -p "$BACKUP_DIR"
+BACKED_UP=0
+for state_name in module08-compose.env module08-aws.env module10-compose.env \
+  bedrock-gateway application-auth; do
+  if [ -e "$ROOT/.state/$state_name" ]; then
+    RESET_STARTED=true
+    mv "$ROOT/.state/$state_name" "$BACKUP_DIR/"
+    BACKED_UP=$((BACKED_UP+1))
+  fi
+done
+if [ "$BACKED_UP" -eq 0 ]; then
+  rmdir "$BACKUP_DIR"
+  BACKUP_DIR="없음 (기존 제어면 상태 없음)"
 else
-  BACKUP_DIR="없음 (기존 .state 없음)"
+  printf 'previous-state-backup=%s items=%s\n' "$BACKUP_DIR" "$BACKED_UP"
 fi
 RESET_STARTED=true
 mkdir -p "$ROOT/.state/bedrock-gateway" "$ROOT/.state/application-auth"
