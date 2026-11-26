@@ -87,7 +87,7 @@ printf '삭제 조건: llm-security-control-plane network 소속이며 아래 �
 printf '  llm-security-application-gateway\n  llm-security-nemo-hub\n  llm-security-presidio-spoke\n  llm-security-bedrock-gateway\n  llm-security-nemo-dialog-rails\n  guardrails-presidio-api\n'
 printf '컨테이너 내부에서만 수정한 파일은 삭제됩니다.\n'
 printf '기존 제어면 상태만 setup 루트 .state/control-plane-backup-날짜로 백업합니다. guided 상태는 유지합니다.\n'
-printf '초기 모드: detection — NeMo·Presidio로 검사하되 탐지 결과로 차단하지 않습니다. 로그인·권한 검사는 유지합니다.\n'
+printf '초기 모드: prevent — NeMo·Presidio 탐지 결과에 따라 차단·치환합니다. 로그인·권한 검사도 적용합니다.\n'
 printf '서비스 Token·로그인 상태는 새로 생성합니다. 이전 JWT는 사용할 수 없습니다.\n'
 printf '~/.aws·작업 파일·이미지·network는 유지합니다. 실습 Knowledge Base는 재사용하거나 생성·복구합니다.\n'
 printf '실습 전용 Knowledge Base나 Data Source가 실패 상태이면 복구 과정에서 삭제 후 재생성될 수 있습니다. S3 원문은 유지합니다.\n'
@@ -160,7 +160,7 @@ GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 18)
 AUTH_ADMIN_TOKEN=$(openssl rand -hex 24)
 AUTH_ACCESS_TTL_SECONDS=86400
 AUTH_REFRESH_TTL_SECONDS=86400
-GUARD_MODE=detection
+GUARD_MODE=prevent
 ASSURANCE_PROFILE=high-assurance
 LEGACY_STATIC_TOKEN_MODE=false
 CONTROL_PLANE_POLICY_SOURCE=$ROOT/policies/evaluation-control-plane-policy.yaml
@@ -283,7 +283,7 @@ for url in http://127.0.0.1:18096/healthz http://127.0.0.1:18093/healthz \
   log "준비 검사 통과: $url"
 done
 curl -fsS --max-time 10 http://127.0.0.1:18094/api/guardrails/policy \
-  | jq -e '.guard_mode == "detection" and .assurance_profile == "high-assurance" and
+  | jq -e '.guard_mode == "prevent" and .assurance_profile == "high-assurance" and
            .presidio_failure_mode == "closed" and .main_task.id == "account-security-support-v1"' >/dev/null
 # Verify the issued lifetime, not only the Compose setting; never display the token.
 curl -fsS --max-time 10 -X POST http://127.0.0.1:9016/.well-known/login \
@@ -291,14 +291,14 @@ curl -fsS --max-time 10 -X POST http://127.0.0.1:9016/.well-known/login \
   -d '{"username":"public-reader","password":"public-reader-demo"}' \
   | jq -e '.expires_in == 86400 and .token_type == "Bearer" and (.access_token | type == "string" and length > 0)' >/dev/null
 log '로그인 Token 유효 시간 확인 완료: 86400초 (24시간)'
-printf 'evaluation-environment=READY app=http://127.0.0.1:9016 mode=detection profile=high-assurance auth=jwt presidio-failure=closed\n'
+printf 'evaluation-environment=READY app=http://127.0.0.1:9016 mode=prevent profile=high-assurance auth=jwt presidio-failure=closed\n'
 printf '\n===== 평가 환경 준비 결과 =====\n'
 printf '결과: READY · 소요 시간: %s초\n' "$((SECONDS-START_SECONDS))"
 printf 'Setup 버전: %s (공식 main 최신 확인)\n' "$SETUP_COMMIT"
 printf '서비스: 4개 시작 및 health 확인 완료\n'
 printf 'Application: http://127.0.0.1:9016\nNeMo Hub: http://127.0.0.1:18094\nPresidio: http://127.0.0.1:18093\nBedrock Gateway: http://127.0.0.1:18096\n'
 printf 'Knowledge Base: %s · %s · us-east-1\n' "$KNOWLEDGE_BASE_ID" "$KB_ACTION"
-printf '적용 정책: detection · high-assurance · Presidio 장애 시 closed\n'
+printf '적용 정책: prevent · high-assurance · Presidio 장애 시 closed\n'
 printf '검사 범위: NeMo·Presidio 탐지, 차단·비식별화 미적용. JWT 인증·인가·Bedrock 자체 안전 기능 유지\n'
 printf '로그인 Token: 86400초 (24시간) · 환경 파일에 저장 · 실제 발급 확인 완료\n'
 printf '업무 정책: account-security-support-v1 · 인증: JWT (새 인증 상태)\n'
