@@ -40,6 +40,13 @@ class BrowserPortContract(unittest.TestCase):
             self.assertTrue(mount.get("source", "").endswith(source_suffix), name)
             self.assertFalse(mount.get("read_only", False), name)
 
+    def test_evaluation_recovery_supports_ec2_instance_role(self):
+        script = (ROOT / "llm-security-control-plane/deploy/prepare-evaluation-environment.sh").read_text()
+        self.assertIn("USE_EC2_INSTANCE_ROLE=false", script)
+        self.assertIn("AWS_EC2_METADATA_DISABLED=false", script)
+        self.assertIn("USE_EC2_INSTANCE_ROLE=$USE_EC2_INSTANCE_ROLE", script)
+        self.assertIn('mkdir -p "$ROOT/.state/bedrock-gateway"', script)
+
     def test_application_is_the_only_public_control_plane_service(self):
         services = compose("llm-security-control-plane/compose.yaml")
         self.assertNotIn("build", services["bedrock-gateway"])

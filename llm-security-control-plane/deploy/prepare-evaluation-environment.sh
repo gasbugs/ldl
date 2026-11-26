@@ -114,11 +114,25 @@ for container in llm-security-application-gateway llm-security-nemo-hub \
     exit 1
   fi
 done
-[ -d "$HOME/.aws" ] || { echo 'AWS configuration directory missing: ~/.aws' >&2; exit 1; }
-AWS_SHARED_CREDENTIALS_FILE="$HOME/.aws/credentials" AWS_CONFIG_FILE="$HOME/.aws/config" \
-  aws sts get-caller-identity --profile default --region us-east-1 >/dev/null
-
-log 'Docker와 AWS default Profile 인증 확인 완료 (us-east-1).'
+USE_EC2_INSTANCE_ROLE=false
+SELECTED_AWS_PROFILE=default
+if env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY \
+    -u AWS_SESSION_TOKEN -u AWS_SECURITY_TOKEN -u AWS_WEB_IDENTITY_TOKEN_FILE -u AWS_ROLE_ARN \
+    -u AWS_CONTAINER_CREDENTIALS_FULL_URI -u AWS_CONTAINER_CREDENTIALS_RELATIVE_URI \
+    AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null \
+    AWS_EC2_METADATA_DISABLED=false \
+    aws sts get-caller-identity --region us-east-1 --query Arn --output text 2>/dev/null \
+    | grep -q ':assumed-role/'; then
+  USE_EC2_INSTANCE_ROLE=true
+  SELECTED_AWS_PROFILE=""
+  mkdir -p "$HOME/.aws"
+  log 'Docker와 EC2 인스턴스 역할 인증 확인 완료 (us-east-1).'
+else
+  [ -d "$HOME/.aws" ] || { echo 'AWS configuration directory missing: ~/.aws' >&2; exit 1; }
+  AWS_SHARED_CREDENTIALS_FILE="$HOME/.aws/credentials" AWS_CONFIG_FILE="$HOME/.aws/config" \
+    aws sts get-caller-identity --profile default --region us-east-1 >/dev/null
+  log 'Docker와 AWS default Profile 인증 확인 완료 (us-east-1).'
+fi
 stage 2 '새 서비스 Token과 평가 설정 준비'
 # Build first so a build failure does not destroy the previous runtime or state.
 # This temporary directory also lives under the Git-ignored setup .state.
@@ -128,8 +142,9 @@ ENV_FILE="$PREPARATION_DIR/module08-compose.env"
 (
   umask 077
   cat > "$ENV_FILE" <<ENV
-AWS_PROFILE=default
+AWS_PROFILE=$SELECTED_AWS_PROFILE
 AWS_REGION=us-east-1
+USE_EC2_INSTANCE_ROLE=$USE_EC2_INSTANCE_ROLE
 BEDROCK_MODEL_ID=us.amazon.nova-lite-v1:0
 MODULE08_KNOWLEDGE_BASE_ID=$KNOWLEDGE_BASE_ID
 PRESIDIO_INTERNAL_TOKEN=$(openssl rand -hex 24)
@@ -182,8 +197,15 @@ compose build presidio nemo-hub application
 log 'Gateway 다운로드와 나머지 서비스 이미지 빌드 완료.'
 stage 4 'Knowledge Base 탐색·생성·문서 수집'
 # Resolve AWS resources before removing the previous containers or local state.
-export AWS_PROFILE=default AWS_REGION=us-east-1
-export AWS_SHARED_CREDENTIALS_FILE="$HOME/.aws/credentials" AWS_CONFIG_FILE="$HOME/.aws/config"
+export AWS_REGION=us-east-1
+if [ "$USE_EC2_INSTANCE_ROLE" = true ]; then
+  unset AWS_PROFILE AWS_DEFAULT_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  unset AWS_SHARED_CREDENTIALS_FILE AWS_CONFIG_FILE
+  export AWS_EC2_METADATA_DISABLED=false
+else
+  export AWS_PROFILE=default
+  export AWS_SHARED_CREDENTIALS_FILE="$HOME/.aws/credentials" AWS_CONFIG_FILE="$HOME/.aws/config"
+fi
 if [ -z "$KNOWLEDGE_BASE_ID" ]; then
   MODULE08_AWS_STATE_DIR="$PREPARATION_DIR/aws" \
     bash "$ROOT/deploy/restore-module08-aws.sh" --ensure | tee "$PREPARATION_DIR/knowledge-base.log"
