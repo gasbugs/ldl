@@ -306,6 +306,7 @@ fi
 
 key_pair_id="$("${AWS[@]}" ec2 describe-key-pairs --key-names "$LAB_NAME" \
   --query 'KeyPairs[0].KeyPairId' --output text 2>/dev/null || true)"
+EC2_KEY_NAME=$LAB_NAME
 if [ -z "$key_pair_id" ] || [ "$key_pair_id" = None ]; then
   [ ! -e "$KEY_FILE" ] || {
     echo "local key exists but AWS key pair does not: $KEY_FILE" >&2
@@ -318,9 +319,16 @@ if [ -z "$key_pair_id" ] || [ "$key_pair_id" = None ]; then
     --query KeyMaterial --output text >"$KEY_FILE"
   chmod 400 "$KEY_FILE"
 elif [ ! -f "$KEY_FILE" ]; then
-  echo "AWS key pair $LAB_NAME exists, but its private key is missing: $KEY_FILE" >&2
-  echo "Do not delete the AWS key pair automatically; choose a recovery key explicitly." >&2
-  exit 1
+  # 기존 AWS 키는 보존하고 새 인스턴스에 사용할 키를 별도로 만든다.
+  EC2_KEY_NAME="${LAB_NAME}-$(date -u +%Y%m%d%H%M%S)-$$"
+  KEY_FILE="$HOME/$EC2_KEY_NAME.pem"
+  umask 077
+  "${AWS[@]}" ec2 create-key-pair --key-name "$EC2_KEY_NAME" \
+    --key-type rsa --key-format pem \
+    --tag-specifications "ResourceType=key-pair,Tags=[{Key=Name,Value=$LAB_NAME},{Key=Project,Value=$PROJECT_TAG}]" \
+    --query KeyMaterial --output text >"$KEY_FILE"
+  chmod 400 "$KEY_FILE"
+  printf 'Created recovery key pair: %s; private key: %s\n' "$EC2_KEY_NAME" "$KEY_FILE"
 fi
 ssh-keygen -y -f "$KEY_FILE" >/dev/null
 
@@ -366,7 +374,7 @@ if [ "$INSTANCE_ID" = None ]; then
 
   INSTANCE_ID="$("${AWS[@]}" ec2 run-instances \
     --image-id "$AMI_ID" --instance-type "$INSTANCE_TYPE" --count 1 \
-    --key-name "$LAB_NAME" --iam-instance-profile "Name=$LAB_ROLE" \
+    --key-name "$EC2_KEY_NAME" --iam-instance-profile "Name=$LAB_ROLE" \
     --network-interfaces "DeviceIndex=0,SubnetId=$SUBNET_ID,Groups=[$SG_ID],AssociatePublicIpAddress=true" \
     --block-device-mappings 'DeviceName=/dev/sda1,Ebs={VolumeSize=100,VolumeType=gp3,Encrypted=true,DeleteOnTermination=true}' \
     --metadata-options 'HttpTokens=required,HttpPutResponseHopLimit=2,HttpEndpoint=enabled' \
