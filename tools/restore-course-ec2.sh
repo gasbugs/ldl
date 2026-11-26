@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Notion "AWS EC2 자체 환경 구축 (강의용 시스템)" 절차를 재실행 가능한 형태로 묶는다.
-# 두 번째 노트에서는 EC2 역할에 주는 Bedrock 모델/Knowledge Base 조회 권한만 반영한다.
+# 두 번째 노트의 Bedrock 모델 호출과 Module 08 Knowledge Base 준비 권한을 반영한다.
 
 AWS_REGION=${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}
 AWS_PROFILE_NAME=${AWS_PROFILE_NAME:-owasp-llm-cpu-lab}
@@ -19,8 +19,10 @@ usage: restore-course-ec2.sh [--profile PROFILE] [--knowledge-base-id ID]
 
 Signs in with the selected AWS profile when needed, restores or creates the course
 EC2 instance, and installs Docker Engine, Compose, and AWS CLI over SSH. The script
-also grants Nova Lite and Titan Embed access to the EC2 role. If a Knowledge Base ID
-is supplied, it grants read/retrieve access to that Knowledge Base only.
+also grants Nova Lite, Titan Embed, and the scoped permissions required to create or
+repair the Module 08 Knowledge Base. Existing keys, instances, and instance profiles
+are reused. If a Knowledge Base ID is supplied, read/retrieve access is also limited
+to that Knowledge Base.
 EOF
 }
 
@@ -70,8 +72,12 @@ printf 'AWS account=%s region=%s caller=%s\n' "$ACCOUNT_ID" "$AWS_REGION" "$CALL
 trust_policy="$(mktemp)"
 model_policy="$(mktemp)"
 kb_policy="$(mktemp)"
+kb_preparation_policy="$(mktemp)"
 docker_bootstrap="$(mktemp)"
-cleanup() { rm -f -- "$trust_policy" "$model_policy" "$kb_policy" "$docker_bootstrap"; }
+cleanup() {
+  rm -f -- "$trust_policy" "$model_policy" "$kb_policy" \
+    "$kb_preparation_policy" "$docker_bootstrap"
+}
 trap cleanup EXIT
 
 cat >"$trust_policy" <<'JSON'
@@ -137,6 +143,98 @@ cat >"$model_policy" <<JSON
 JSON
 "${AWS[@]}" iam put-role-policy --role-name "$LAB_ROLE" \
   --policy-name OwaspLabModel --policy-document "file://$model_policy"
+
+# restore-module08-aws.sh가 고정 이름으로 만드는 자원에만 준비 권한을 준다.
+MODULE08_PREFIX=owasp-llm-module08
+MODULE08_BUCKET="${MODULE08_PREFIX}-${ACCOUNT_ID}-source"
+MODULE08_VECTOR_BUCKET="${MODULE08_PREFIX}-${ACCOUNT_ID}-vectors"
+MODULE08_KB_ROLE="${MODULE08_PREFIX}-knowledge-base-role"
+cat >"$kb_preparation_policy" <<JSON
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PrepareModule08SourceBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket", "s3:GetBucketPublicAccessBlock", "s3:ListBucket",
+        "s3:PutBucketPublicAccessBlock"
+      ],
+      "Resource": "arn:aws:s3:::${MODULE08_BUCKET}"
+    },
+    {
+      "Sid": "UploadModule08Documents",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::${MODULE08_BUCKET}/knowledge/*"
+    },
+    {
+      "Sid": "PrepareModule08VectorBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3vectors:CreateVectorBucket", "s3vectors:GetVectorBucket",
+        "s3vectors:ListIndexes"
+      ],
+      "Resource": "arn:aws:s3vectors:${AWS_REGION}:${ACCOUNT_ID}:bucket/${MODULE08_VECTOR_BUCKET}"
+    },
+    {
+      "Sid": "PrepareModule08VectorIndex",
+      "Effect": "Allow",
+      "Action": ["s3vectors:CreateIndex", "s3vectors:GetIndex"],
+      "Resource": "arn:aws:s3vectors:${AWS_REGION}:${ACCOUNT_ID}:bucket/${MODULE08_VECTOR_BUCKET}/index/guardrail-knowledge"
+    },
+    {
+      "Sid": "ManageModule08KnowledgeBaseServiceRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:GetRole", "iam:PutRolePolicy",
+        "iam:UpdateAssumeRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::${ACCOUNT_ID}:role/${MODULE08_KB_ROLE}"
+    },
+    {
+      "Sid": "PassModule08RoleOnlyToBedrock",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::${ACCOUNT_ID}:role/${MODULE08_KB_ROLE}",
+      "Condition": {"StringEquals": {"iam:PassedToService": "bedrock.amazonaws.com"}}
+    },
+    {
+      "Sid": "ListModule08KnowledgeBases",
+      "Effect": "Allow",
+      "Action": "bedrock:ListKnowledgeBases",
+      "Resource": "*"
+    },
+    {
+      "Sid": "CreateTaggedModule08KnowledgeBase",
+      "Effect": "Allow",
+      "Action": ["bedrock:CreateKnowledgeBase", "bedrock:TagResource"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/Project": "llm-defense-lab",
+          "aws:RequestTag/Module": "08"
+        }
+      }
+    },
+    {
+      "Sid": "OperateModule08KnowledgeBase",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:CreateDataSource", "bedrock:DeleteDataSource",
+        "bedrock:DeleteKnowledgeBase", "bedrock:GetDataSource",
+        "bedrock:GetIngestionJob", "bedrock:GetKnowledgeBase",
+        "bedrock:ListDataSources", "bedrock:ListIngestionJobs",
+        "bedrock:Retrieve", "bedrock:StartIngestionJob"
+      ],
+      "Resource": "arn:aws:bedrock:${AWS_REGION}:${ACCOUNT_ID}:knowledge-base/*"
+    }
+  ]
+}
+JSON
+"${AWS[@]}" iam put-role-policy --role-name "$LAB_ROLE" \
+  --policy-name OwaspLabKnowledgePreparation \
+  --policy-document "file://$kb_preparation_policy"
 
 if [ -n "$KNOWLEDGE_BASE_ID" ]; then
   case "$KNOWLEDGE_BASE_ID" in
@@ -258,6 +356,19 @@ else
     "${AWS[@]}" ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
     "${AWS[@]}" ec2 start-instances --instance-ids "$INSTANCE_ID" >/dev/null
   fi
+fi
+
+# 기존 EC2는 교체하지 않는다. Profile이 없을 때만 이번 역할을 연결한다.
+instance_profile_arn="$("${AWS[@]}" ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+  --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn' --output text)"
+expected_profile_arn="arn:aws:iam::${ACCOUNT_ID}:instance-profile/${LAB_ROLE}"
+if [ -z "$instance_profile_arn" ] || [ "$instance_profile_arn" = None ]; then
+  "${AWS[@]}" ec2 associate-iam-instance-profile --instance-id "$INSTANCE_ID" \
+    --iam-instance-profile "Name=$LAB_ROLE" >/dev/null
+elif [ "$instance_profile_arn" != "$expected_profile_arn" ]; then
+  echo "existing EC2 uses a different instance profile: $instance_profile_arn" >&2
+  echo "preserving the current profile; no replacement was attempted" >&2
+  exit 1
 fi
 
 "${AWS[@]}" ec2 wait instance-running --instance-ids "$INSTANCE_ID"

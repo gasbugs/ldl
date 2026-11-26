@@ -122,7 +122,7 @@ else
 fi
 
 if "${AWS[@]}" iam get-role --role-name "$LAB_ROLE" >/dev/null 2>&1; then
-  for policy_name in OwaspLabModel OwaspLabKnowledgeRead; do
+  for policy_name in OwaspLabModel OwaspLabKnowledgeRead OwaspLabKnowledgePreparation; do
     if "${AWS[@]}" iam get-role-policy --role-name "$LAB_ROLE" \
       --policy-name "$policy_name" >/dev/null 2>&1; then
       "${AWS[@]}" iam delete-role-policy \
