@@ -277,6 +277,33 @@ case "$MY_IP" in
 esac
 printf 'Allowed client IPv4=%s/32\n' "$MY_IP"
 
+# 기존 서버는 로컬 키·보안 그룹 복구에 앞서 시작한다.
+INSTANCE_ID="$("${AWS[@]}" ec2 describe-instances \
+  --filters "Name=tag:Name,Values=$LAB_NAME" \
+    "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+  --query 'sort_by(Reservations[].Instances[], &LaunchTime)[-1].InstanceId' --output text)"
+if [ -n "$INSTANCE_ID" ] && [ "$INSTANCE_ID" != None ]; then
+  instance_state="$("${AWS[@]}" ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+    --query 'Reservations[0].Instances[0].State.Name' --output text)"
+  printf 'Reusing EC2 %s (state=%s)\n' "$INSTANCE_ID" "$instance_state"
+  if [ "$instance_state" = stopping ]; then
+    "${AWS[@]}" ec2 wait instance-stopped --instance-ids "$INSTANCE_ID"
+    instance_state=stopped
+  fi
+  if [ "$instance_state" = stopped ]; then
+    "${AWS[@]}" ec2 start-instances --instance-ids "$INSTANCE_ID" >/dev/null
+    printf 'EC2 start requested: %s\n' "$INSTANCE_ID"
+  fi
+  if [ ! -f "$KEY_FILE" ]; then
+    "${AWS[@]}" ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+    PUBLIC_IP="$("${AWS[@]}" ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+      --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+    printf 'EC2 running: instance=%s public_ip=%s\n' "$INSTANCE_ID" "$PUBLIC_IP"
+    echo 'Private key is unavailable; SSH bootstrap skipped. Existing EC2 was preserved and started.'
+    exit 0
+  fi
+fi
+
 key_pair_id="$("${AWS[@]}" ec2 describe-key-pairs --key-names "$LAB_NAME" \
   --query 'KeyPairs[0].KeyPairId' --output text 2>/dev/null || true)"
 if [ -z "$key_pair_id" ] || [ "$key_pair_id" = None ]; then
