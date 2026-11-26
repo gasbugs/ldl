@@ -7,6 +7,7 @@ services:
       dockerfile: Containerfile
     image: localhost/llm-security-gateway:3.0
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-gateway
+    restart: always
     environment:
       ENABLE_LAB_ENDPOINTS: "true"
       LLM_MONITOR_TOKEN: ${LLM_MONITOR_TOKEN:?Set LLM_MONITOR_TOKEN in the selected Compose env file}
@@ -34,6 +35,7 @@ services:
     # gateway service가 같은 Compose 실행에서 Build한 local image만 재사용한다.
     pull_policy: never
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-retrieval
+    restart: always
     command: ["uvicorn", "retrieval_service:app", "--host", "0.0.0.0", "--port", "8081", "--no-access-log"]
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
@@ -46,6 +48,7 @@ services:
   alloy:
     image: docker.io/grafana/alloy:v1.18.0
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-alloy
+    restart: always
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -64,6 +67,7 @@ services:
   prometheus:
     image: docker.io/prom/prometheus:v3.5.0
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-prometheus
+    restart: always
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -85,6 +89,7 @@ services:
   alertmanager:
     image: docker.io/prom/alertmanager:v0.28.1
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-alertmanager
+    restart: always
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
@@ -102,6 +107,7 @@ services:
     # localhost registry를 조회하지 않고 gateway의 local Build 결과를 재사용한다.
     pull_policy: never
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-alert-webhook
+    restart: always
     command: ["uvicorn", "alert_receiver:app", "--host", "0.0.0.0", "--port", "8099", "--no-access-log"]
     ports:
       - 127.0.0.1:${WEBHOOK_HOST_PORT:-8099}:8099
@@ -111,6 +117,7 @@ services:
   loki:
     image: docker.io/grafana/loki:3.5.3
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-loki
+    restart: always
     command: ["-config.file=/etc/loki/config.yaml"]
     ports:
       - 127.0.0.1:${LOKI_HOST_PORT:-3100}:3100
@@ -123,6 +130,7 @@ services:
   tempo:
     image: docker.io/grafana/tempo:3.0.2
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-tempo
+    restart: always
     command: ["-target=all", "-config.file=/etc/tempo/config.yaml"]
     ports:
       - 127.0.0.1:${TEMPO_HOST_PORT:-3200}:3200
@@ -135,6 +143,7 @@ services:
   grafana:
     image: docker.io/grafana/grafana:12.1.0
     container_name: ${CONTAINER_NAME_PREFIX:-llm-sec}-grafana
+    restart: always
     environment:
       GF_SERVER_HTTP_ADDR: 0.0.0.0
       GF_SERVER_HTTP_PORT: "3000"

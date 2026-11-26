@@ -69,6 +69,11 @@ class BrowserPortContract(unittest.TestCase):
                 else:
                     self.assertEqual(port["host_ip"], "127.0.0.1", name)
 
+    def test_monitoring_services_restart_after_ec2_reboot(self):
+        services = compose("examples/security-monitoring/compose.yaml")
+        for name, service in services.items():
+            self.assertEqual(service.get("restart"), "always", name)
+
     def test_browser_links_use_the_current_ec2_hostname(self):
         html = (ROOT / "llm-security-control-plane/application-gateway/index.html").read_text()
         self.assertNotIn('href="http://127.0.0.1', html)
