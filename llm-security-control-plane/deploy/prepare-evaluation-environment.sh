@@ -299,7 +299,7 @@ printf '서비스: 4개 시작 및 health 확인 완료\n'
 printf 'Application: http://127.0.0.1:9016\nNeMo Hub: http://127.0.0.1:18094\nPresidio: http://127.0.0.1:18093\nBedrock Gateway: http://127.0.0.1:18096\n'
 printf 'Knowledge Base: %s · %s · us-east-1\n' "$KNOWLEDGE_BASE_ID" "$KB_ACTION"
 printf '적용 정책: prevent · high-assurance · Presidio 장애 시 closed\n'
-printf '검사 범위: NeMo·Presidio 탐지, 차단·비식별화 미적용. JWT 인증·인가·Bedrock 자체 안전 기능 유지\n'
+printf '검사 범위: NeMo·Presidio 탐지 결과에 따른 차단·비식별화 적용. JWT 인증·인가·Bedrock 자체 안전 기능 유지\n'
 printf '로그인 Token: 86400초 (24시간) · 환경 파일에 저장 · 실제 발급 확인 완료\n'
 printf '업무 정책: account-security-support-v1 · 인증: JWT (새 인증 상태)\n'
 printf '이전 컨테이너: %s개 제거 · 상태 백업: %s\n' "$REMOVED_COUNT" "$BACKUP_DIR"
